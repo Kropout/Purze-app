@@ -1,0 +1,112 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../data/repositories/transaction_repository.dart';
+import '../../data/models/transaction_model.dart';
+import '../../data/models/budget_model.dart';
+import '../../domain/entities/category.dart';
+
+// ─── Repository Provider ───
+final transactionRepositoryProvider = Provider<TransactionRepository>((ref) {
+  return TransactionRepository();
+});
+
+// ─── All Transactions ───
+final allTransactionsProvider = NotifierProvider<TransactionListNotifier, List<TransactionModel>>(() {
+  return TransactionListNotifier();
+});
+
+class TransactionListNotifier extends Notifier<List<TransactionModel>> {
+  late TransactionRepository _repo;
+
+  @override
+  List<TransactionModel> build() {
+    _repo = ref.watch(transactionRepositoryProvider);
+    return _repo.getAllTransactions();
+  }
+
+  void refresh() {
+    state = _repo.getAllTransactions();
+  }
+
+  Future<void> add(TransactionModel transaction) async {
+    await _repo.addTransaction(transaction);
+    refresh();
+  }
+
+  Future<void> remove(String id) async {
+    await _repo.deleteTransaction(id);
+    refresh();
+  }
+}
+
+// ─── Filtered Transactions ───
+final selectedCategoryFilterProvider = StateProvider<TransactionCategory?>((ref) => null);
+
+final filteredTransactionsProvider = Provider<List<TransactionModel>>((ref) {
+  final all = ref.watch(allTransactionsProvider);
+  final filter = ref.watch(selectedCategoryFilterProvider);
+  if (filter == null) return all;
+  return all.where((t) => t.categoryIndex == filter.index).toList();
+});
+
+// ─── Search ───
+final searchQueryProvider = StateProvider<String>((ref) => '');
+
+final searchedTransactionsProvider = Provider<List<TransactionModel>>((ref) {
+  final filtered = ref.watch(filteredTransactionsProvider);
+  final query = ref.watch(searchQueryProvider).toLowerCase();
+  if (query.isEmpty) return filtered;
+  return filtered.where((t) =>
+      t.merchant.toLowerCase().contains(query) ||
+      t.amount.toString().contains(query)).toList();
+});
+
+// ─── Budgets ───
+final allBudgetsProvider = NotifierProvider<BudgetListNotifier, List<BudgetModel>>(() {
+  return BudgetListNotifier();
+});
+
+class BudgetListNotifier extends Notifier<List<BudgetModel>> {
+  late TransactionRepository _repo;
+
+  @override
+  List<BudgetModel> build() {
+    _repo = ref.watch(transactionRepositoryProvider);
+    return _repo.getAllBudgets();
+  }
+
+  void refresh() {
+    state = _repo.getAllBudgets();
+  }
+
+  Future<void> updateLimit(int categoryIndex, double limit) async {
+    await _repo.updateBudgetLimit(categoryIndex, limit);
+    refresh();
+  }
+}
+
+// ─── Analytics ───
+final totalSpentProvider = Provider<double>((ref) {
+  final repo = ref.watch(transactionRepositoryProvider);
+  return repo.getTotalSpentThisMonth();
+});
+
+final totalBudgetProvider = Provider<double>((ref) {
+  final repo = ref.watch(transactionRepositoryProvider);
+  return repo.getTotalBudget();
+});
+
+final spendingByCategoryProvider = Provider<Map<int, double>>((ref) {
+  final repo = ref.watch(transactionRepositoryProvider);
+  return repo.getSpendingByCategory();
+});
+
+final weeklySpendingProvider = Provider<Map<int, double>>((ref) {
+  final repo = ref.watch(transactionRepositoryProvider);
+  return repo.getWeeklySpending();
+});
+
+// ─── Navigation ───
+final selectedTabProvider = StateProvider<int>((ref) => 0);
+
+// ─── Selected Month for Analytics ───
+final selectedMonthProvider = StateProvider<DateTime>((ref) => DateTime.now());
