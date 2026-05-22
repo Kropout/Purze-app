@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:ui';
-import '../../core/theme/app_colors.dart';
+
 import '../providers/app_providers.dart';
 import '../widgets/bubble_hover.dart';
 import 'home_screen.dart';
 import 'transactions_screen.dart';
 import 'analytics_screen.dart';
 import 'budget_screen.dart';
+import 'settings_screen.dart';
 
 class MainShell extends ConsumerWidget {
   const MainShell({super.key});
@@ -21,6 +22,7 @@ class MainShell extends ConsumerWidget {
       TransactionsScreen(),
       AnalyticsScreen(),
       BudgetScreen(),
+      SettingsScreen(),
     ];
 
     return Scaffold(
@@ -37,25 +39,26 @@ class MainShell extends ConsumerWidget {
             enableScale: false, // Capsule container does not scale, items inside scale instead
             enableGlow: true,
             child: Container(
-              height: 74,
+              height: 72,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(24),
                 // Semi-translucent base background
-                color: AppColors.surfaceContainer.withValues(alpha: 0.4),
+                color: Theme.of(context).colorScheme.surfaceContainer.withValues(alpha: 0.45),
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(24),
                 child: BackdropFilter(
                   filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        _buildNavItem(ref, 0, Icons.home_outlined, Icons.home_rounded, 'Home', selectedTab),
-                        _buildNavItem(ref, 1, Icons.receipt_long_outlined, Icons.receipt_long_rounded, 'Transactions', selectedTab),
-                        _buildNavItem(ref, 2, Icons.pie_chart_outline_rounded, Icons.pie_chart_rounded, 'Analytics', selectedTab),
-                        _buildNavItem(ref, 3, Icons.account_balance_wallet_outlined, Icons.account_balance_wallet_rounded, 'Budget', selectedTab),
+                        _buildNavItem(context, ref, 0, Icons.home_outlined, Icons.home_rounded, 'Home', selectedTab),
+                        _buildNavItem(context, ref, 1, Icons.receipt_long_outlined, Icons.receipt_long_rounded, 'Txns', selectedTab),
+                        _buildNavItem(context, ref, 2, Icons.pie_chart_outline_rounded, Icons.pie_chart_rounded, 'Analytics', selectedTab),
+                        _buildNavItem(context, ref, 3, Icons.account_balance_wallet_outlined, Icons.account_balance_wallet_rounded, 'Budget', selectedTab),
+                        _buildNavItem(context, ref, 4, Icons.settings_outlined, Icons.settings_rounded, 'Settings', selectedTab),
                       ],
                     ),
                   ),
@@ -69,6 +72,7 @@ class MainShell extends ConsumerWidget {
   }
 
   Widget _buildNavItem(
+    BuildContext context,
     WidgetRef ref,
     int index,
     IconData icon,
@@ -77,54 +81,51 @@ class MainShell extends ConsumerWidget {
     int selectedTab,
   ) {
     final isSelected = selectedTab == index;
-    final color = isSelected ? AppColors.primary : AppColors.outline;
+    final theme = Theme.of(context);
+    final color = isSelected ? theme.colorScheme.primary : theme.colorScheme.outline;
 
     return Expanded(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4),
-        child: BubbleHover(
-          borderRadius: 16,
-          enableGlow: false,
-          onTap: () {
-            ref.read(selectedTabProvider.notifier).state = index;
-          },
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 6),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              color: Colors.transparent,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(14),
-                    // Micro glass selection bubble
-                    color: isSelected
-                        ? AppColors.primaryContainer.withValues(alpha: 0.25)
-                        : Colors.transparent,
-                  ),
-                  child: Icon(
-                    isSelected ? selectedIcon : icon,
-                    color: color,
-                    size: 22,
-                  ),
+      child: GestureDetector(
+        onTap: () {
+          ref.read(selectedTabProvider.notifier).state = index;
+        },
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  // Micro glass selection bubble
+                  color: isSelected
+                      ? theme.colorScheme.primaryContainer.withValues(alpha: 0.25)
+                      : Colors.transparent,
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  label,
-                  style: TextStyle(
-                    color: color,
-                    fontSize: 10,
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                  ),
+                child: Icon(
+                  isSelected ? selectedIcon : icon,
+                  color: color,
+                  size: 20,
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 9,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                ),
+              ),
+            ],
           ),
         ),
       ),

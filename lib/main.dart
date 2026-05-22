@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
+import 'core/constants/app_constants.dart';
 import 'core/theme/app_theme.dart';
 import 'data/models/transaction_model.dart';
 import 'data/models/budget_model.dart';
@@ -25,6 +26,7 @@ Future<void> main() async {
   await Hive.initFlutter();
   Hive.registerAdapter(TransactionModelAdapter());
   Hive.registerAdapter(BudgetModelAdapter());
+  await Hive.openBox(AppConstants.settingsBox); // Persist settings like theme mode
 
   // Initialize repository (seeds mock data on first launch)
   final repo = TransactionRepository();
@@ -40,15 +42,19 @@ Future<void> main() async {
   );
 }
 
-class PurzeApp extends StatelessWidget {
+class PurzeApp extends ConsumerWidget {
   const PurzeApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeMode = ref.watch(themeModeProvider);
+
     return MaterialApp(
       title: 'Purze',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.darkTheme,
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: themeMode,
       home: const MainShell(),
     );
   }

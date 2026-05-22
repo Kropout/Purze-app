@@ -1,4 +1,7 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hive/hive.dart';
+import '../../core/constants/app_constants.dart';
 import '../../data/repositories/transaction_repository.dart';
 import '../../data/models/transaction_model.dart';
 import '../../data/models/budget_model.dart';
@@ -110,3 +113,33 @@ final selectedTabProvider = StateProvider<int>((ref) => 0);
 
 // ─── Selected Month for Analytics ───
 final selectedMonthProvider = StateProvider<DateTime>((ref) => DateTime.now());
+
+// ─── Theme Mode Provider ───
+final themeModeProvider = StateNotifierProvider<ThemeModeNotifier, ThemeMode>((ref) {
+  return ThemeModeNotifier();
+});
+
+class ThemeModeNotifier extends StateNotifier<ThemeMode> {
+  ThemeModeNotifier() : super(ThemeMode.dark) {
+    _loadTheme();
+  }
+
+  void _loadTheme() {
+    try {
+      final box = Hive.box(AppConstants.settingsBox);
+      final isDark = box.get('isDarkMode', defaultValue: true) as bool;
+      state = isDark ? ThemeMode.dark : ThemeMode.light;
+    } catch (_) {
+      state = ThemeMode.dark;
+    }
+  }
+
+  Future<void> toggleTheme() async {
+    final isDark = state == ThemeMode.dark;
+    state = isDark ? ThemeMode.light : ThemeMode.dark;
+    try {
+      final box = Hive.box(AppConstants.settingsBox);
+      await box.put('isDarkMode', !isDark);
+    } catch (_) {}
+  }
+}

@@ -38,7 +38,7 @@ class HomeScreen extends ConsumerWidget {
                     Text(
                       _getGreeting(),
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: AppColors.outline,
+                            color: Theme.of(context).colorScheme.outline,
                           ),
                     ),
                     const SizedBox(height: 4),
@@ -52,12 +52,19 @@ class HomeScreen extends ConsumerWidget {
                   width: 48,
                   height: 48,
                   decoration: BoxDecoration(
-                    gradient: AppColors.primaryGradient,
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Theme.of(context).colorScheme.primary,
+                        Theme.of(context).colorScheme.primaryContainer,
+                      ],
+                    ),
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.person_rounded,
-                    color: AppColors.onPrimary,
+                    color: Theme.of(context).colorScheme.onPrimary,
                     size: 24,
                   ),
                 ),
@@ -83,14 +90,14 @@ class HomeScreen extends ConsumerWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          color: AppColors.primaryContainer.withValues(alpha: 0.3),
+                          color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.35),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
                           DateFormat('MMMM yyyy').format(DateTime.now()),
                           style:
                               Theme.of(context).textTheme.labelSmall?.copyWith(
-                                    color: AppColors.primary,
+                                    color: Theme.of(context).colorScheme.primary,
                                   ),
                         ),
                       ),
@@ -114,7 +121,7 @@ class HomeScreen extends ConsumerWidget {
                       Container(
                         width: 1,
                         height: 36,
-                        color: AppColors.outlineVariant.withValues(alpha: 0.15),
+                        color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.25),
                       ),
                       _buildStat(
                         context,
@@ -179,7 +186,7 @@ class HomeScreen extends ConsumerWidget {
                   child: Text(
                     'See All',
                     style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                          color: AppColors.primary,
+                          color: Theme.of(context).colorScheme.primary,
                         ),
                   ),
                 ),
@@ -213,7 +220,7 @@ class HomeScreen extends ConsumerWidget {
         Text(
           label,
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: AppColors.outline,
+                color: Theme.of(context).colorScheme.outline,
               ),
         ),
         const SizedBox(height: 4),

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:ui';
-import '../../core/theme/app_colors.dart';
+
 import 'bubble_hover.dart';
 
 class GlassCard extends StatelessWidget {
@@ -39,7 +39,7 @@ class GlassCard extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(borderRadius),
             // Deep glass translucent background
-            color: AppColors.surfaceContainerHighest.withValues(alpha: 0.45),
+            color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(borderRadius),

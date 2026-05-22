@@ -99,4 +99,40 @@ class AppColors {
     Color(0x66FFB5A1), // tertiary (coral highlight)
     Color(0x33FFFFFF), // trailing soft highlight
   ];
+
+  // ─── Light Mode Surface & Backgrounds (Soft slate-teal off-white) ───
+  static const Color lightSurface = Color(0xFFF2F7F5);
+  static const Color lightSurfaceDim = Color(0xFFE6ECE9);
+  static const Color lightSurfaceBright = Color(0xFFFCFDFD);
+  static const Color lightSurfaceContainer = Color(0xFFE9F1EE);
+  static const Color lightSurfaceContainerLow = Color(0xFFEDF4F1);
+  static const Color lightSurfaceContainerLowest = Color(0xFFF6FAF8);
+  static const Color lightSurfaceContainerHigh = Color(0xFFDFE8E5);
+  static const Color lightSurfaceContainerHighest = Color(0xFFD4DDD9);
+
+  // ─── Light Mode On-Surface (Text/Icons) ───
+  static const Color lightOnSurface = Color(0xFF0D2521);
+  static const Color lightOnSurfaceVariant = Color(0xFF3F4E4A);
+
+  // ─── Light Mode Primary Palette (Readable deeper teal contrast) ───
+  static const Color lightPrimary = Color(0xFF006A62);
+  static const Color lightPrimaryContainer = Color(0xFF84F5E8);
+  static const Color lightOnPrimary = Colors.white;
+  static const Color lightOnPrimaryContainer = Color(0xFF00201C);
+
+  // ─── Light Mode Secondary Palette ───
+  static const Color lightSecondary = Color(0xFF0B5345);
+  static const Color lightSecondaryContainer = Color(0xFF94D3C1);
+  static const Color lightOnSecondary = Colors.white;
+  static const Color lightOnSecondaryContainer = Color(0xFF002018);
+
+  // ─── Light Mode Tertiary Palette ───
+  static const Color lightTertiary = Color(0xFF9C4330);
+  static const Color lightTertiaryContainer = Color(0xFFFFB5A1);
+  static const Color lightOnTertiary = Colors.white;
+  static const Color lightOnTertiaryContainer = Color(0xFF3E0400);
+
+  // ─── Light Mode Outline ───
+  static const Color lightOutline = Color(0xFF6F7975);
+  static const Color lightOutlineVariant = Color(0xFFBFCBC7);
 }

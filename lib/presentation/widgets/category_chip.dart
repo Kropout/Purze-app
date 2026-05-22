@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:ui';
-import '../../core/theme/app_colors.dart';
+
 import '../../domain/entities/category.dart';
 import 'bubble_hover.dart';
 
@@ -17,11 +17,11 @@ class CategoryChip extends StatelessWidget {
     required this.onTap,
     this.showAll = false,
   });
-
   @override
   Widget build(BuildContext context) {
     final label = showAll ? 'All' : category!.label;
-    final color = showAll ? AppColors.primary : category!.color;
+    final theme = Theme.of(context);
+    final color = showAll ? theme.colorScheme.primary : category!.color;
 
     return BubbleHover(
       borderRadius: 24,
@@ -37,7 +37,7 @@ class CategoryChip extends StatelessWidget {
             decoration: BoxDecoration(
               color: isSelected
                   ? color.withValues(alpha: 0.25)
-                  : AppColors.surfaceContainerHighest.withValues(alpha: 0.45),
+                  : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
               borderRadius: BorderRadius.circular(24),
               border: Border.all(
                 color: isSelected
@@ -55,8 +55,8 @@ class CategoryChip extends StatelessWidget {
                 ],
                 Text(
                   label,
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: isSelected ? color : AppColors.onSurfaceVariant,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                        color: isSelected ? color : theme.colorScheme.onSurfaceVariant,
                         fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                       ),
                 ),
@@ -66,5 +66,4 @@ class CategoryChip extends StatelessWidget {
         ),
       ),
     );
-  }
-}
+  }}
