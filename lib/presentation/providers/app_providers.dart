@@ -12,6 +12,32 @@ final transactionRepositoryProvider = Provider<TransactionRepository>((ref) {
   return TransactionRepository();
 });
 
+// ─── Onboarding ───
+final hasOnboardedProvider = StateNotifierProvider<HasOnboardedNotifier, bool>((ref) {
+  return HasOnboardedNotifier();
+});
+
+class HasOnboardedNotifier extends StateNotifier<bool> {
+  HasOnboardedNotifier() : super(_readInitial());
+
+  static bool _readInitial() {
+    try {
+      final box = Hive.box(AppConstants.settingsBox);
+      return box.get(AppConstants.hasOnboardedKey, defaultValue: false) as bool;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> complete() async {
+    state = true;
+    try {
+      final box = Hive.box(AppConstants.settingsBox);
+      await box.put(AppConstants.hasOnboardedKey, true);
+    } catch (_) {}
+  }
+}
+
 // ─── User ───
 final userNameProvider = Provider<String>((ref) {
   try {
@@ -23,6 +49,36 @@ final userNameProvider = Provider<String>((ref) {
     return 'Hey there';
   }
 });
+
+// ─── Monthly Budget (overall) ───
+final monthlyBudgetProvider = StateNotifierProvider<MonthlyBudgetNotifier, double>((ref) {
+  return MonthlyBudgetNotifier();
+});
+
+class MonthlyBudgetNotifier extends StateNotifier<double> {
+  MonthlyBudgetNotifier() : super(_readInitial());
+
+  static double _readInitial() {
+    try {
+      final box = Hive.box(AppConstants.settingsBox);
+      final val = box.get(AppConstants.monthlyBudgetKey, defaultValue: 0);
+      if (val is int) return val.toDouble();
+      if (val is double) return val;
+      return 0;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  Future<void> setBudget(double value) async {
+    final double sanitized = value.isFinite && value > 0 ? value : 0.0;
+    state = sanitized;
+    try {
+      final box = Hive.box(AppConstants.settingsBox);
+      await box.put(AppConstants.monthlyBudgetKey, sanitized);
+    } catch (_) {}
+  }
+}
 
 // ─── All Transactions ───
 final allTransactionsProvider = NotifierProvider<TransactionListNotifier, List<TransactionModel>>(() {
@@ -108,10 +164,8 @@ final totalSpentProvider = Provider<double>((ref) {
 });
 
 final totalBudgetProvider = Provider<double>((ref) {
-  // Recompute when budgets change.
-  ref.watch(allBudgetsProvider);
-  final repo = ref.watch(transactionRepositoryProvider);
-  return repo.getTotalBudget();
+  // Overall monthly budget is stored in Hive settings.
+  return ref.watch(monthlyBudgetProvider);
 });
 
 final spendingByCategoryProvider = Provider<Map<int, double>>((ref) {

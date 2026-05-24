@@ -100,7 +100,7 @@ class BudgetScreen extends ConsumerWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        '${((totalSpent / totalBudget) * 100).clamp(0, 999).toStringAsFixed(0)}% used',
+                        '${(totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0).clamp(0, 999).toStringAsFixed(0)}% used',
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
                               color: AppColors.outline,
                             ),

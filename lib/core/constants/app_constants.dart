@@ -8,4 +8,6 @@ class AppConstants {
   static const String settingsBox = 'settings';
 
   static const String userNameKey = 'userName';
+  static const String monthlyBudgetKey = 'monthlyBudget';
+  static const String hasOnboardedKey = 'hasOnboarded';
 }

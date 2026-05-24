@@ -10,6 +10,7 @@ import 'data/models/budget_model.dart';
 import 'data/repositories/transaction_repository.dart';
 import 'presentation/providers/app_providers.dart';
 import 'presentation/screens/main_shell.dart';
+import 'presentation/screens/app_entry.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -55,7 +56,7 @@ class PurzeApp extends ConsumerWidget {
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: themeMode,
-      home: const MainShell(),
+      home: const AppEntry(),
     );
   }
 }
