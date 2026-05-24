@@ -1,7 +1,6 @@
 import 'package:hive/hive.dart';
 import '../models/transaction_model.dart';
 import '../models/budget_model.dart';
-import '../mock/mock_data.dart';
 import '../../core/constants/app_constants.dart';
 
 class TransactionRepository {
@@ -12,24 +11,7 @@ class TransactionRepository {
     _transactionBox = await Hive.openBox<TransactionModel>(AppConstants.transactionBox);
     _budgetBox = await Hive.openBox<BudgetModel>(AppConstants.budgetBox);
 
-    // Seed mock data on first launch
-    if (_transactionBox.isEmpty) {
-      final mockTransactions = MockData.getMockTransactions();
-      for (final t in mockTransactions) {
-        await _transactionBox.put(t.id, t);
-      }
-    }
-
-    if (_budgetBox.isEmpty) {
-      final defaults = MockData.getDefaultBudgets();
-      for (final entry in defaults.entries) {
-        final budget = BudgetModel(
-          categoryIndex: entry.key,
-          monthlyLimit: entry.value,
-        );
-        await _budgetBox.put(entry.key, budget);
-      }
-    }
+    // Intentionally do not seed any data; a fresh install should start empty.
   }
 
   List<TransactionModel> getAllTransactions() {

@@ -12,6 +12,18 @@ final transactionRepositoryProvider = Provider<TransactionRepository>((ref) {
   return TransactionRepository();
 });
 
+// ─── User ───
+final userNameProvider = Provider<String>((ref) {
+  try {
+    final box = Hive.box(AppConstants.settingsBox);
+    final name = (box.get(AppConstants.userNameKey) as String?)?.trim();
+    if (name == null || name.isEmpty) return 'Hey there';
+    return name;
+  } catch (_) {
+    return 'Hey there';
+  }
+});
+
 // ─── All Transactions ───
 final allTransactionsProvider = NotifierProvider<TransactionListNotifier, List<TransactionModel>>(() {
   return TransactionListNotifier();
@@ -89,21 +101,29 @@ class BudgetListNotifier extends Notifier<List<BudgetModel>> {
 
 // ─── Analytics ───
 final totalSpentProvider = Provider<double>((ref) {
+  // Recompute when transactions change.
+  ref.watch(allTransactionsProvider);
   final repo = ref.watch(transactionRepositoryProvider);
   return repo.getTotalSpentThisMonth();
 });
 
 final totalBudgetProvider = Provider<double>((ref) {
+  // Recompute when budgets change.
+  ref.watch(allBudgetsProvider);
   final repo = ref.watch(transactionRepositoryProvider);
   return repo.getTotalBudget();
 });
 
 final spendingByCategoryProvider = Provider<Map<int, double>>((ref) {
+  // Recompute when transactions change.
+  ref.watch(allTransactionsProvider);
   final repo = ref.watch(transactionRepositoryProvider);
   return repo.getSpendingByCategory();
 });
 
 final weeklySpendingProvider = Provider<Map<int, double>>((ref) {
+  // Recompute when transactions change.
+  ref.watch(allTransactionsProvider);
   final repo = ref.watch(transactionRepositoryProvider);
   return repo.getWeeklySpending();
 });

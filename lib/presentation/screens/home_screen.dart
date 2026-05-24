@@ -43,7 +43,7 @@ class HomeScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Piyush',
+                      ref.watch(userNameProvider),
                       style: Theme.of(context).textTheme.headlineMedium,
                     ),
                   ],
@@ -197,11 +197,22 @@ class HomeScreen extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Column(
                 children: [
-                  for (int i = 0; i < recentTransactions.length; i++) ...[
-                    TransactionTile(transaction: recentTransactions[i]),
-                    if (i < recentTransactions.length - 1)
-                      const SizedBox(height: 4),
-                  ],
+                  if (recentTransactions.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      child: Text(
+                        'No transactions yet. Your UPI transactions will appear here automatically.',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Theme.of(context).colorScheme.outline,
+                            ),
+                      ),
+                    )
+                  else
+                    for (int i = 0; i < recentTransactions.length; i++) ...[
+                      TransactionTile(transaction: recentTransactions[i]),
+                      if (i < recentTransactions.length - 1)
+                        const SizedBox(height: 4),
+                    ],
                 ],
               ),
             ),

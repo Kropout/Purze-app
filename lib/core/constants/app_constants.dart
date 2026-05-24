@@ -6,6 +6,6 @@ class AppConstants {
   static const String transactionBox = 'transactions';
   static const String budgetBox = 'budgets';
   static const String settingsBox = 'settings';
-  
-  static const double defaultMonthlyBudget = 50000;
+
+  static const String userNameKey = 'userName';
 }

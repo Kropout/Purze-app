@@ -28,7 +28,7 @@ Future<void> main() async {
   Hive.registerAdapter(BudgetModelAdapter());
   await Hive.openBox(AppConstants.settingsBox); // Persist settings like theme mode
 
-  // Initialize repository (seeds mock data on first launch)
+  // Initialize repository (opens Hive boxes)
   final repo = TransactionRepository();
   await repo.init();
 

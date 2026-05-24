@@ -45,8 +45,10 @@ class _BudgetRingState extends State<BudgetRing>
 
   @override
   Widget build(BuildContext context) {
-    final percentage = (widget.spent / widget.total).clamp(0.0, 1.0);
-    final isOverBudget = widget.spent > widget.total;
+    final percentage = widget.total <= 0
+        ? 0.0
+        : (widget.spent / widget.total).clamp(0.0, 1.0);
+    final isOverBudget = widget.total > 0 && widget.spent > widget.total;
 
     return AnimatedBuilder(
       animation: _animation,
