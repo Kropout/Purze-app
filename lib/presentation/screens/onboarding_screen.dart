@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'dart:io' show Platform;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:hive/hive.dart';
+import '../../data/services/sms_importer.dart';
 
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_colors.dart';
@@ -142,6 +144,64 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
       final status = await Permission.sms.request();
       if (status.isGranted) {
+        // On Android, import entire inbox after permission is granted
+        if (Platform.isAndroid) {
+          // show blocking import dialog
+          if (mounted) {
+            showDialog(
+              context: context,
+              barrierDismissible: false,
+              builder: (ctx) {
+                final theme = Theme.of(ctx);
+                return AlertDialog(
+                  backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  content: SizedBox(
+                    width: 220,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircularProgressIndicator(color: theme.colorScheme.primary),
+                        const SizedBox(height: 16),
+                        Text('Importing your transaction history...', style: theme.textTheme.bodyMedium),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            );
+          }
+
+          try {
+            final repo = ref.read(transactionRepositoryProvider);
+            final lastSync = Hive.box(AppConstants.settingsBox).get(AppConstants.lastSmsSyncKey) as int?;
+            final importer = SmsImporter();
+            final added = await importer.importEntireInbox(repo, sinceMillis: lastSync);
+            // update last sync
+            try {
+              final box = Hive.box(AppConstants.settingsBox);
+              await box.put(AppConstants.lastSmsSyncKey, DateTime.now().millisecondsSinceEpoch);
+            } catch (_) {}
+
+            // refresh providers
+            ref.read(allTransactionsProvider.notifier).refresh();
+
+            if (mounted && added > 0) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Imported $added transactions'),
+                  backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            }
+          } catch (_) {
+            // ignore import errors
+          } finally {
+            if (mounted) Navigator.of(context, rootNavigator: true).pop();
+          }
+        }
+
         if (mounted) await _goNext();
       } else if (allowSkip) {
         if (mounted) await _goNext();
