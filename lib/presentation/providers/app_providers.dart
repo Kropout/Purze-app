@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
@@ -404,5 +407,88 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
       final box = Hive.box(AppConstants.settingsBox);
       await box.put('isDarkMode', !isDark);
     } catch (_) {}
+  }
+}
+
+// ─── PIN & Biometric Auth ───
+
+final pinAuthProvider = Provider<PinAuth>((ref) {
+  return PinAuth(ref: ref);
+});
+
+class PinAuth {
+  final Ref ref;
+  PinAuth({required this.ref});
+
+  Box get _box => Hive.box(AppConstants.settingsBox);
+
+  bool isPinSet() {
+    final s = _box.get(AppConstants.pinHashKey) as String?;
+    return s != null && s.isNotEmpty;
+  }
+
+  Future<void> setPin(String pin) async {
+    final hash = sha256.convert(utf8.encode(pin)).toString();
+    await _box.put(AppConstants.pinHashKey, hash);
+    await _box.put(AppConstants.failedAttemptsKey, 0);
+    await _box.delete(AppConstants.lockUntilKey);
+  }
+
+  Future<bool> verifyPin(String pin) async {
+    final stored = _box.get(AppConstants.pinHashKey) as String?;
+    if (stored == null) return false;
+    final hash = sha256.convert(utf8.encode(pin)).toString();
+    if (hash == stored) {
+      await _box.put(AppConstants.failedAttemptsKey, 0);
+      await _box.delete(AppConstants.lockUntilKey);
+      return true;
+    }
+
+    final attempts = (_box.get(AppConstants.failedAttemptsKey, defaultValue: 0) as int) + 1;
+    await _box.put(AppConstants.failedAttemptsKey, attempts);
+    if (attempts >= 5) {
+      final lockUntil = DateTime.now().add(const Duration(seconds: 30));
+      await _box.put(AppConstants.lockUntilKey, lockUntil.toIso8601String());
+      await _box.put(AppConstants.failedAttemptsKey, 0);
+    }
+    return false;
+  }
+
+  bool isLocked() {
+    final s = _box.get(AppConstants.lockUntilKey) as String?;
+    if (s == null) return false;
+    try {
+      final until = DateTime.parse(s);
+      return DateTime.now().isBefore(until);
+    } catch (_) {
+      return false;
+    }
+  }
+
+  int lockedSecondsRemaining() {
+    final s = _box.get(AppConstants.lockUntilKey) as String?;
+    if (s == null) return 0;
+    try {
+      final until = DateTime.parse(s);
+      final diff = until.difference(DateTime.now());
+      return diff.isNegative ? 0 : diff.inSeconds;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  bool isBiometricEnabled() {
+    return _box.get(AppConstants.biometricEnabledKey, defaultValue: false) as bool;
+  }
+
+  Future<void> setBiometricEnabled(bool enabled) async {
+    await _box.put(AppConstants.biometricEnabledKey, enabled);
+  }
+
+  Future<void> clearPin() async {
+    await _box.delete(AppConstants.pinHashKey);
+    await _box.delete(AppConstants.failedAttemptsKey);
+    await _box.delete(AppConstants.lockUntilKey);
+    await _box.delete(AppConstants.biometricEnabledKey);
   }
 }

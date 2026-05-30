@@ -529,6 +529,101 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
             const SizedBox(height: 28),
 
+            // ─── Security Section ───
+            _buildSectionHeader(context, 'Security'),
+            const SizedBox(height: 12),
+            GlassCard(
+              padding: const EdgeInsets.all(0),
+              child: Column(
+                children: [
+                  Consumer(builder: (context, ref, _) {
+                    final pinAuth = ref.watch(pinAuthProvider);
+                    return _buildSettingTile(
+                      context,
+                      icon: Icons.fingerprint,
+                      iconColor: theme.colorScheme.primary,
+                      title: 'Biometric Login',
+                      subtitle: pinAuth.isBiometricEnabled() ? 'Enabled' : 'Disabled',
+                      onTap: () async {
+                        final enabled = !pinAuth.isBiometricEnabled();
+                        await ref.read(pinAuthProvider).setBiometricEnabled(enabled);
+                        setState(() {});
+                      },
+                      trailing: Switch(
+                        value: ref.watch(pinAuthProvider).isBiometricEnabled(),
+                        onChanged: (v) async => await ref.read(pinAuthProvider).setBiometricEnabled(v),
+                      ),
+                    );
+                  }),
+                  _buildDivider(context),
+                  _buildSettingTile(
+                    context,
+                    icon: Icons.lock_open,
+                    iconColor: AppColors.debit,
+                    title: 'Change PIN',
+                    subtitle: 'Update your 4-digit PIN',
+                    onTap: () async {
+                      // ask current PIN then new PIN twice
+                      final current = await showDialog<String?>(
+                        context: context,
+                        builder: (ctx) {
+                          final controller = TextEditingController();
+                          return AlertDialog(
+                            title: const Text('Enter current PIN'),
+                            content: TextField(controller: controller, keyboardType: TextInputType.number, obscureText: true, maxLength: 4, decoration: const InputDecoration(counterText: '')),
+                            actions: [TextButton(onPressed: () => Navigator.pop(ctx, null), child: const Text('Cancel')), ElevatedButton(onPressed: () => Navigator.pop(ctx, controller.text), child: const Text('OK'))],
+                          );
+                        },
+                      );
+
+                      if (current == null) return;
+                      final ok = await ref.read(pinAuthProvider).verifyPin(current);
+                      if (!ok) {
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Incorrect current PIN')));
+                        return;
+                      }
+
+                      final newPin1 = await showDialog<String?>(
+                        context: context,
+                        builder: (ctx) {
+                          final controller = TextEditingController();
+                          return AlertDialog(
+                            title: const Text('Enter new PIN'),
+                            content: TextField(controller: controller, keyboardType: TextInputType.number, obscureText: true, maxLength: 4, decoration: const InputDecoration(counterText: '')),
+                            actions: [TextButton(onPressed: () => Navigator.pop(ctx, null), child: const Text('Cancel')), ElevatedButton(onPressed: () => Navigator.pop(ctx, controller.text), child: const Text('Next'))],
+                          );
+                        },
+                      );
+                      if (newPin1 == null || newPin1.length != 4) return;
+
+                      final newPin2 = await showDialog<String?>(
+                        context: context,
+                        builder: (ctx) {
+                          final controller = TextEditingController();
+                          return AlertDialog(
+                            title: const Text('Confirm new PIN'),
+                            content: TextField(controller: controller, keyboardType: TextInputType.number, obscureText: true, maxLength: 4, decoration: const InputDecoration(counterText: '')),
+                            actions: [TextButton(onPressed: () => Navigator.pop(ctx, null), child: const Text('Cancel')), ElevatedButton(onPressed: () => Navigator.pop(ctx, controller.text), child: const Text('Save'))],
+                          );
+                        },
+                      );
+
+                      if (newPin2 == null || newPin1 != newPin2) {
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('PINs do not match')));
+                        return;
+                      }
+
+                      await ref.read(pinAuthProvider).setPin(newPin1);
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('PIN updated')));
+                    },
+                    trailing: Icon(Icons.chevron_right_rounded, color: theme.colorScheme.outline),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 28),
+
             // ─── Data Section ───
             _buildSectionHeader(context, 'Data Management'),
             const SizedBox(height: 12),

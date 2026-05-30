@@ -63,7 +63,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   Future<void> _goNext() async {
-    final next = (_step + 1).clamp(0, 5);
+    final next = (_step + 1).clamp(0, 6);
     await _pageController.animateToPage(
       next,
       duration: const Duration(milliseconds: 280),
@@ -72,7 +72,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   Future<void> _goBack() async {
-    final prev = (_step - 1).clamp(0, 5);
+    final prev = (_step - 1).clamp(0, 6);
     await _pageController.animateToPage(
       prev,
       duration: const Duration(milliseconds: 280),
@@ -316,7 +316,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Step ${_step + 1}/6',
+                    'Step ${_step + 1}/7',
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
                           color: Theme.of(context).colorScheme.outline,
                         ),
@@ -526,7 +526,56 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                       ),
                     ),
 
-                    // 5) SMS permission
+                    // 5) PIN setup
+                    _page(
+                      GlassCard(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _stepHeader(
+                              context,
+                              'Set a 4-digit PIN',
+                              'Use a 4-digit PIN to secure your app. You can also enable biometrics later.',
+                            ),
+                            const SizedBox(height: 18),
+                            Builder(builder: (ctx) {
+                              final pin1 = TextEditingController();
+                              final pin2 = TextEditingController();
+                              return Column(
+                                children: [
+                                  TextField(controller: pin1, keyboardType: TextInputType.number, obscureText: true, maxLength: 4, decoration: const InputDecoration(hintText: 'Enter 4-digit PIN', counterText: '')),
+                                  const SizedBox(height: 8),
+                                  TextField(controller: pin2, keyboardType: TextInputType.number, obscureText: true, maxLength: 4, decoration: const InputDecoration(hintText: 'Confirm PIN', counterText: '')),
+                                  const SizedBox(height: 12),
+                                  _primaryButton(
+                                    label: 'Save PIN',
+                                    onPressed: () async {
+                                      final p1 = pin1.text.trim();
+                                      final p2 = pin2.text.trim();
+                                      if (p1.length != 4 || p2.length != 4) {
+                                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Enter a 4-digit PIN')));
+                                        return;
+                                      }
+                                      if (p1 != p2) {
+                                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('PINs do not match')));
+                                        return;
+                                      }
+                                      await ref.read(pinAuthProvider).setPin(p1);
+                                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('PIN saved')));
+                                      if (mounted) await _goNext();
+                                    },
+                                  ),
+                                ],
+                              );
+                            }),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    // 6) SMS permission
                     _page(
                       GlassCard(
                         padding: const EdgeInsets.all(24),

@@ -20,6 +20,12 @@ class AppConstants {
   static const String startingBalanceKey = 'startingBalance';
   static const String lastSmsSyncKey = 'lastSmsSync';
 
+  // Security keys
+  static const String pinHashKey = 'pinHash';
+  static const String biometricEnabledKey = 'biometricEnabled';
+  static const String failedAttemptsKey = 'failedAttempts';
+  static const String lockUntilKey = 'lockUntil';
+
   // Validation limits
   static const int maxNameLength = 20;
   static const int maxMonthlyBudget = 1000000; // ₹10,00,000
