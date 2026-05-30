@@ -36,14 +36,7 @@ class HomeScreen extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      _getGreeting(),
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Theme.of(context).colorScheme.outline,
-                          ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      ref.watch(userNameProvider),
+                      '${_getGreeting()} ${ref.watch(userNameProvider)}',
                       style: Theme.of(context).textTheme.headlineMedium,
                     ),
                   ],
