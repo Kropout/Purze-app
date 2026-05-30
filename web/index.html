@@ -2,23 +2,13 @@
 <html>
 <head>
   <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
+    Base href placeholder — replaced by build if necessary
   -->
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="Purze - Personal finance on-device">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
@@ -31,16 +21,69 @@
 
   <title>purze</title>
   <link rel="manifest" href="manifest.json">
+  
+  <!-- Raleway font from Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    /* Branded splash for Purze (dark theme) */
+    :root{
+      --bg: #03251E; /* AppColors.surfaceContainer */
+      --teal: #66D9CC; /* AppColors.primary */
+      --muted: #BFC9C4; /* onSurfaceVariant */
+    }
+    html,body{height:100%;margin:0;font-family:'Raleway',sans-serif}
+    #splash{
+      position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;
+      background:var(--bg);color:var(--muted);flex-direction:column;transition:opacity .45s ease,visibility .45s ease;
+    }
+    #splash.fade-out{opacity:0;visibility:hidden;pointer-events:none}
+    .splash-brand{font-family:'Raleway',sans-serif;color:var(--teal);font-weight:800;font-size:48px;letter-spacing:1px}
+    .splash-tag{margin-top:8px;color:var(--muted);font-size:14px;font-family:'Raleway',sans-serif}
+    /* pulsing dots */
+    .dots{display:inline-flex;gap:8px;margin-top:14px}
+    .dot{width:10px;height:10px;border-radius:50%;background:var(--teal);opacity:0.85;transform:scale(1);animation:pulse 1s infinite ease-in-out}
+    .dot:nth-child(2){animation-delay:0.12s}
+    .dot:nth-child(3){animation-delay:0.24s}
+    @keyframes pulse{0%{transform:scale(0.85);opacity:0.5}50%{transform:scale(1.15);opacity:1}100%{transform:scale(0.85);opacity:0.5}}
+  </style>
 </head>
 <body>
-  <!--
-    You can customize the "flutter_bootstrap.js" script.
-    This is useful to provide a custom configuration to the Flutter loader
-    or to give the user feedback during the initialization process.
+  <!-- Custom splash screen shown while Flutter initializes -->
+  <div id="splash" aria-hidden="true">
+    <div class="splash-brand">Purze</div>
+    <div class="splash-tag">Your money, simplified.</div>
+    <div class="dots" role="status" aria-label="Loading">
+      <div class="dot"></div>
+      <div class="dot"></div>
+      <div class="dot"></div>
+    </div>
+  </div>
 
-    For more details:
-    * https://docs.flutter.dev/platform-integration/web/initialization
-  -->
   <script src="flutter_bootstrap.js" async></script>
+
+  <script>
+    // Fade out the splash when Flutter renders its first frame
+    (function(){
+      function hideSplash(){
+        try{
+          var s = document.getElementById('splash');
+          if(!s) return;
+          s.classList.add('fade-out');
+          // remove from DOM after transition
+          setTimeout(function(){ if(s && s.parentNode) s.parentNode.removeChild(s); }, 600);
+        }catch(e){/* ignore */}
+      }
+
+      // Flutter emits 'flutter-first-frame' when ready
+      if (window.flutterFirstFrameEventListenerAdded !== true) {
+        window.addEventListener('flutter-first-frame', function(){ hideSplash(); }, { once: true });
+        window.flutterFirstFrameEventListenerAdded = true;
+      }
+
+      // Fallback: also hide after a timeout to avoid stuck splash
+      setTimeout(function(){ hideSplash(); }, 8000);
+    })();
+  </script>
 </body>
 </html>
