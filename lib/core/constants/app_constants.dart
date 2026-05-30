@@ -17,6 +17,7 @@ class AppConstants {
   static const String accentColorKey = 'accentColor';
   static const String currencySymbolKey = 'currencySymbol';
   static const String hasOnboardedKey = 'hasOnboarded';
+  static const String startingBalanceKey = 'startingBalance';
 
   // Validation limits
   static const int maxNameLength = 20;

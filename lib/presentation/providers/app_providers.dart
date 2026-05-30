@@ -326,6 +326,54 @@ final weeklySpendingProvider = Provider<Map<int, double>>((ref) {
 // ─── Navigation ───
 final selectedTabProvider = StateProvider<int>((ref) => 0);
 
+// ─── Starting Balance (for estimated available balance) ───
+final startingBalanceProvider = StateNotifierProvider<StartingBalanceNotifier, double>((ref) {
+  return StartingBalanceNotifier();
+});
+
+class StartingBalanceNotifier extends StateNotifier<double> {
+  StartingBalanceNotifier() : super(_readInitial());
+
+  static double _readInitial() {
+    try {
+      final box = Hive.box(AppConstants.settingsBox);
+      final val = box.get(AppConstants.startingBalanceKey, defaultValue: 0);
+      if (val is int) return val.toDouble();
+      if (val is double) return val;
+      return 0.0;
+    } catch (_) {
+      return 0.0;
+    }
+  }
+
+  Future<void> setStartingBalance(double value) async {
+    final double sanitized = value.isFinite ? value : 0.0;
+    state = sanitized;
+    try {
+      final box = Hive.box(AppConstants.settingsBox);
+      await box.put(AppConstants.startingBalanceKey, sanitized);
+    } catch (_) {}
+  }
+
+  Future<void> reset() async {
+    state = 0.0;
+    try {
+      final box = Hive.box(AppConstants.settingsBox);
+      await box.delete(AppConstants.startingBalanceKey);
+    } catch (_) {}
+  }
+}
+
+
+// ─── Estimated Balance ───
+final estimatedBalanceProvider = Provider<double>((ref) {
+  final starting = ref.watch(startingBalanceProvider);
+  final all = ref.watch(allTransactionsProvider);
+  final credits = all.where((t) => !t.isDebit).fold(0.0, (sum, t) => sum + t.amount);
+  final debits = all.where((t) => t.isDebit).fold(0.0, (sum, t) => sum + t.amount);
+  return starting + credits - debits;
+});
+
 // ─── Selected Month for Analytics ───
 final selectedMonthProvider = StateProvider<DateTime>((ref) => DateTime.now());
 

@@ -21,8 +21,8 @@ class HomeScreen extends ConsumerWidget {
     final rawName = ref.watch(userNameProvider).trim();
     final displayName = rawName.isEmpty ? 'Hey there' : rawName;
     final recentTransactions = transactions.take(5).toList();
-    final formatter = NumberFormat('#,##,###', 'en_IN');
-
+    final formatter = NumberFormat.decimalPattern('en_IN');
+    final estimated = ref.watch(estimatedBalanceProvider);
     return SafeArea(
       child: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
@@ -108,6 +108,36 @@ class HomeScreen extends ConsumerWidget {
                         AppColors.credit,
                       ),
                     ],
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 28),
+
+            // ─── Estimated Balance Card ───
+            GlassCard(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Estimated Balance',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '$currency${formatter.format(estimated)}',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Based on UPI transactions only',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.outline,
+                        ),
                   ),
                 ],
               ),

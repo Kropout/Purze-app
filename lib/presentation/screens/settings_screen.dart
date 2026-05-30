@@ -21,6 +21,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   late final TextEditingController _nameController;
   late final TextEditingController _phoneController;
   late final TextEditingController _budgetController;
+  late final TextEditingController _startingBalanceController;
 
   int _accentColorValue = AppColors.primary.toARGB32();
 
@@ -33,9 +34,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _nameController = TextEditingController(text: ref.read(userNameProvider));
     _phoneController = TextEditingController(text: ref.read(userPhoneProvider));
     _budgetController = TextEditingController();
+    _startingBalanceController = TextEditingController();
 
     final mbDouble = ref.read(monthlyBudgetProvider);
     _budgetController.text = mbDouble <= 0 ? '' : mbDouble.toStringAsFixed(0);
+
+    final sb = ref.read(startingBalanceProvider);
+    _startingBalanceController.text = sb <= 0 ? '' : sb.toStringAsFixed(0);
 
     _accentColorValue = ref.read(accentColorValueProvider);
   }
@@ -45,6 +50,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _nameController.dispose();
     _phoneController.dispose();
     _budgetController.dispose();
+    _startingBalanceController.dispose();
     super.dispose();
   }
 
@@ -206,6 +212,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final raw = _budgetController.text.replaceAll(',', '').trim();
     final value = double.tryParse(raw) ?? 0;
     await ref.read(monthlyBudgetProvider.notifier).setBudget(value);
+
+    // Also save starting balance if provided
+    final rawSb = _startingBalanceController.text.replaceAll(',', '').trim();
+    final sbValue = double.tryParse(rawSb) ?? 0;
+    await ref.read(startingBalanceProvider.notifier).setStartingBalance(sbValue);
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -419,6 +430,32 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             color: theme.colorScheme.secondary,
                             width: 2,
                           ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _startingBalanceController,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: false,
+                        signed: false,
+                      ),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        LengthLimitingTextInputFormatter(10),
+                      ],
+                      validator: _validateBudget,
+                      decoration: InputDecoration(
+                        labelText: 'Current Account Balance (Optional)',
+                        hintText: 'Enter current account balance',
+                        prefixText: '$currency ',
+                        prefixStyle: theme.textTheme.titleMedium?.copyWith(
+                          color: theme.colorScheme.secondary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                        prefixIcon: Icon(
+                          Icons.account_balance_wallet_rounded,
+                          color: theme.colorScheme.secondary,
                         ),
                       ),
                     ),
@@ -753,6 +790,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ref.invalidate(userPhoneProvider);
                 ref.invalidate(accentColorValueProvider);
                 ref.invalidate(currencySymbolProvider);
+                ref.invalidate(startingBalanceProvider);
 
                 await ref.read(hasOnboardedProvider.notifier).reset();
 

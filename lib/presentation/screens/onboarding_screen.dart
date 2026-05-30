@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:io' show Platform;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -24,6 +25,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _budgetController = TextEditingController();
+  final _startingBalanceController = TextEditingController();
 
   int _step = 0;
   bool _requestingSms = false;
@@ -43,6 +45,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     _budgetController.text = mbDouble <= 0 ? '' : mbDouble.toStringAsFixed(0);
 
     _accentColorValue = ref.read(accentColorValueProvider);
+
+    final sb = ref.read(startingBalanceProvider);
+    _startingBalanceController.text = sb <= 0 ? '' : sb.toStringAsFixed(0);
   }
 
   @override
@@ -51,11 +56,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     _nameController.dispose();
     _phoneController.dispose();
     _budgetController.dispose();
+    _startingBalanceController.dispose();
     super.dispose();
   }
 
   Future<void> _goNext() async {
-    final next = (_step + 1).clamp(0, 4);
+    final next = (_step + 1).clamp(0, 5);
     await _pageController.animateToPage(
       next,
       duration: const Duration(milliseconds: 280),
@@ -64,7 +70,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   Future<void> _goBack() async {
-    final prev = (_step - 1).clamp(0, 4);
+    final prev = (_step - 1).clamp(0, 5);
     await _pageController.animateToPage(
       prev,
       duration: const Duration(milliseconds: 280),
@@ -119,9 +125,21 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     await ref.read(monthlyBudgetProvider.notifier).setBudget(value);
   }
 
+  Future<void> _saveStartingBalance() async {
+    final raw = _startingBalanceController.text.replaceAll(',', '').trim();
+    final value = double.tryParse(raw) ?? 0;
+    await ref.read(startingBalanceProvider.notifier).setStartingBalance(value);
+  }
+
   Future<void> _requestSmsPermission({required bool allowSkip}) async {
     setState(() => _requestingSms = true);
     try {
+      // On web, skip permission request (SMS not applicable)
+      if (!Platform.isAndroid && !Platform.isIOS) {
+        if (mounted) await _goNext();
+        return;
+      }
+
       final status = await Permission.sms.request();
       if (status.isGranted) {
         if (mounted) await _goNext();
@@ -238,7 +256,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Step ${_step + 1}/5',
+                    'Step ${_step + 1}/6',
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
                           color: Theme.of(context).colorScheme.outline,
                         ),
@@ -411,7 +429,44 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                       ),
                     ),
 
-                    // 4) SMS permission
+                    // 4) Starting balance (Estimated available balance helper)
+                    _page(
+                      GlassCard(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _stepHeader(
+                              context,
+                              'Current Account Balance (₹)',
+                              'This helps estimate your available balance. You can update it anytime in Settings.',
+                            ),
+                            const SizedBox(height: 18),
+                            TextFormField(
+                              controller: _startingBalanceController,
+                              keyboardType: TextInputType.number,
+                              textInputAction: TextInputAction.done,
+                              validator: _validateBudget,
+                              decoration: InputDecoration(
+                                prefixText: '$currency ',
+                                hintText: '0',
+                              ),
+                            ),
+                            const SizedBox(height: 18),
+                            _primaryButton(
+                              label: 'Continue',
+                              onPressed: () async {
+                                await _saveStartingBalance();
+                                if (mounted) await _goNext();
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    // 5) SMS permission
                     _page(
                       GlassCard(
                         padding: const EdgeInsets.all(24),
