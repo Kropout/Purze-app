@@ -45,10 +45,15 @@ class _BudgetRingState extends State<BudgetRing>
 
   @override
   Widget build(BuildContext context) {
-    final percentage = widget.total <= 0
+    final hasBudget = widget.total > 0;
+    final percentage = !hasBudget
         ? 0.0
         : (widget.spent / widget.total).clamp(0.0, 1.0);
-    final isOverBudget = widget.total > 0 && widget.spent > widget.total;
+    final isOverBudget = hasBudget && widget.spent > widget.total;
+
+    final valueColor = !hasBudget
+        ? AppColors.outline
+        : (isOverBudget ? AppColors.debit : AppColors.primary);
 
     return AnimatedBuilder(
       animation: _animation,
@@ -60,6 +65,7 @@ class _BudgetRingState extends State<BudgetRing>
             painter: _BudgetRingPainter(
               progress: percentage * _animation.value,
               isOverBudget: isOverBudget,
+              hasBudget: hasBudget,
             ),
             child: Center(
               child: Column(
@@ -69,9 +75,7 @@ class _BudgetRingState extends State<BudgetRing>
                     '${(percentage * 100 * _animation.value).toInt()}%',
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                           fontWeight: FontWeight.w700,
-                          color: isOverBudget
-                              ? AppColors.debit
-                              : AppColors.primary,
+                          color: valueColor,
                         ),
                   ),
                   const SizedBox(height: 2),
@@ -94,8 +98,13 @@ class _BudgetRingState extends State<BudgetRing>
 class _BudgetRingPainter extends CustomPainter {
   final double progress;
   final bool isOverBudget;
+  final bool hasBudget;
 
-  _BudgetRingPainter({required this.progress, required this.isOverBudget});
+  _BudgetRingPainter({
+    required this.progress,
+    required this.isOverBudget,
+    required this.hasBudget,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -119,15 +128,20 @@ class _BudgetRingPainter extends CustomPainter {
       ..shader = SweepGradient(
         startAngle: -math.pi / 2,
         endAngle: 3 * math.pi / 2,
-        colors: isOverBudget
+        colors: !hasBudget
             ? [
-                AppColors.debit.withValues(alpha: 0.6),
-                AppColors.debit,
+                AppColors.outlineVariant.withValues(alpha: 0.25),
+                AppColors.outlineVariant.withValues(alpha: 0.6),
               ]
-            : [
-                AppColors.primary.withValues(alpha: 0.4),
-                AppColors.primary,
-              ],
+            : isOverBudget
+                ? [
+                    AppColors.debit.withValues(alpha: 0.6),
+                    AppColors.debit,
+                  ]
+                : [
+                    AppColors.primary.withValues(alpha: 0.4),
+                    AppColors.primary,
+                  ],
       ).createShader(Rect.fromCircle(center: center, radius: radius));
 
     canvas.drawArc(
@@ -158,6 +172,8 @@ class _BudgetRingPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _BudgetRingPainter oldDelegate) {
-    return oldDelegate.progress != progress;
+    return oldDelegate.progress != progress ||
+        oldDelegate.isOverBudget != isOverBudget ||
+        oldDelegate.hasBudget != hasBudget;
   }
 }

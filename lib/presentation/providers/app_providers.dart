@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/theme/app_colors.dart';
 import '../../data/repositories/transaction_repository.dart';
 import '../../data/models/transaction_model.dart';
 import '../../data/models/budget_model.dart';
@@ -46,17 +47,148 @@ class HasOnboardedNotifier extends StateNotifier<bool> {
   }
 }
 
-// ─── User ───
-final userNameProvider = Provider<String>((ref) {
-  try {
-    final box = Hive.box(AppConstants.settingsBox);
-    final name = (box.get(AppConstants.userNameKey) as String?)?.trim();
-    if (name == null || name.isEmpty) return 'Hey there';
-    return name;
-  } catch (_) {
-    return 'Hey there';
-  }
+// ─── User Profile ───
+final userNameProvider = StateNotifierProvider<UserNameNotifier, String>((ref) {
+  return UserNameNotifier();
 });
+
+class UserNameNotifier extends StateNotifier<String> {
+  UserNameNotifier() : super(_readInitial());
+
+  static String _readInitial() {
+    try {
+      final box = Hive.box(AppConstants.settingsBox);
+      return (box.get(AppConstants.userNameKey) as String?)?.trim() ?? '';
+    } catch (_) {
+      return '';
+    }
+  }
+
+  Future<void> setName(String value) async {
+    final name = value.trim();
+    state = name;
+    try {
+      final box = Hive.box(AppConstants.settingsBox);
+      await box.put(AppConstants.userNameKey, name);
+    } catch (_) {}
+  }
+
+  Future<void> reset() async {
+    state = '';
+    try {
+      final box = Hive.box(AppConstants.settingsBox);
+      await box.delete(AppConstants.userNameKey);
+    } catch (_) {}
+  }
+}
+
+final userPhoneProvider = StateNotifierProvider<UserPhoneNotifier, String>((ref) {
+  return UserPhoneNotifier();
+});
+
+class UserPhoneNotifier extends StateNotifier<String> {
+  UserPhoneNotifier() : super(_readInitial());
+
+  static String _readInitial() {
+    try {
+      final box = Hive.box(AppConstants.settingsBox);
+      return (box.get(AppConstants.userPhoneKey) as String?)?.trim() ?? '';
+    } catch (_) {
+      return '';
+    }
+  }
+
+  Future<void> setPhone(String value) async {
+    final phone = value.trim();
+    state = phone;
+    try {
+      final box = Hive.box(AppConstants.settingsBox);
+      await box.put(AppConstants.userPhoneKey, phone);
+    } catch (_) {}
+  }
+
+  Future<void> reset() async {
+    state = '';
+    try {
+      final box = Hive.box(AppConstants.settingsBox);
+      await box.delete(AppConstants.userPhoneKey);
+    } catch (_) {}
+  }
+}
+
+final accentColorValueProvider = StateNotifierProvider<AccentColorNotifier, int>((ref) {
+  return AccentColorNotifier();
+});
+
+final accentColorProvider = Provider<Color>((ref) {
+  return Color(ref.watch(accentColorValueProvider));
+});
+
+class AccentColorNotifier extends StateNotifier<int> {
+  AccentColorNotifier() : super(_readInitial());
+
+  static int _readInitial() {
+    try {
+      final box = Hive.box(AppConstants.settingsBox);
+      return box.get(
+        AppConstants.accentColorKey,
+        defaultValue: AppColors.primary.toARGB32(),
+      ) as int;
+    } catch (_) {
+      return AppColors.primary.toARGB32();
+    }
+  }
+
+  Future<void> setAccentColorValue(int value) async {
+    state = value;
+    try {
+      final box = Hive.box(AppConstants.settingsBox);
+      await box.put(AppConstants.accentColorKey, value);
+    } catch (_) {}
+  }
+
+  Future<void> reset() async {
+    state = AppColors.primary.toARGB32();
+    try {
+      final box = Hive.box(AppConstants.settingsBox);
+      await box.delete(AppConstants.accentColorKey);
+    } catch (_) {}
+  }
+}
+
+final currencySymbolProvider = StateNotifierProvider<CurrencySymbolNotifier, String>((ref) {
+  return CurrencySymbolNotifier();
+});
+
+class CurrencySymbolNotifier extends StateNotifier<String> {
+  CurrencySymbolNotifier() : super(_readInitial());
+
+  static String _readInitial() {
+    try {
+      final box = Hive.box(AppConstants.settingsBox);
+      return (box.get(AppConstants.currencySymbolKey) as String?)?.trim() ?? AppConstants.defaultCurrencySymbol;
+    } catch (_) {
+      return AppConstants.defaultCurrencySymbol;
+    }
+  }
+
+  Future<void> setSymbol(String symbol) async {
+    final sanitized = symbol.trim().isEmpty ? AppConstants.defaultCurrencySymbol : symbol.trim();
+    state = sanitized;
+    try {
+      final box = Hive.box(AppConstants.settingsBox);
+      await box.put(AppConstants.currencySymbolKey, sanitized);
+    } catch (_) {}
+  }
+
+  Future<void> reset() async {
+    state = AppConstants.defaultCurrencySymbol;
+    try {
+      final box = Hive.box(AppConstants.settingsBox);
+      await box.delete(AppConstants.currencySymbolKey);
+    } catch (_) {}
+  }
+}
 
 // ─── Monthly Budget (overall) ───
 final monthlyBudgetProvider = StateNotifierProvider<MonthlyBudgetNotifier, double>((ref) {
@@ -79,7 +211,8 @@ class MonthlyBudgetNotifier extends StateNotifier<double> {
   }
 
   Future<void> setBudget(double value) async {
-    final double sanitized = value.isFinite && value > 0 ? value : 0.0;
+    final double base = value.isFinite ? value : 0.0;
+    final double sanitized = base.clamp(0.0, AppConstants.maxMonthlyBudget.toDouble());
     state = sanitized;
     try {
       final box = Hive.box(AppConstants.settingsBox);

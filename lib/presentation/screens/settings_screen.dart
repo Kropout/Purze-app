@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import '../../core/constants/app_constants.dart';
@@ -14,61 +15,198 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
-  late TextEditingController _nameController;
-  late TextEditingController _budgetController;
+  final _profileFormKey = GlobalKey<FormState>();
+  final _budgetFormKey = GlobalKey<FormState>();
+
+  late final TextEditingController _nameController;
+  late final TextEditingController _phoneController;
+  late final TextEditingController _budgetController;
+
+  int _accentColorValue = AppColors.primary.toARGB32();
+
+  static const List<String> _currencyOptions = <String>['₹', r'$', '€', '£'];
 
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController();
-    _budgetController = TextEditingController();
-    _loadUserData();
-  }
 
-  void _loadUserData() {
-    try {
-      final box = Hive.box(AppConstants.settingsBox);
-      _nameController.text = (box.get(AppConstants.userNameKey) as String?) ?? '';
-      
-      final mb = box.get(AppConstants.monthlyBudgetKey, defaultValue: 0);
-      final mbDouble = mb is int ? mb.toDouble() : (mb is double ? mb : 0.0);
-      _budgetController.text = mbDouble <= 0 ? '' : mbDouble.toStringAsFixed(0);
-    } catch (_) {}
+    _nameController = TextEditingController(text: ref.read(userNameProvider));
+    _phoneController = TextEditingController(text: ref.read(userPhoneProvider));
+    _budgetController = TextEditingController();
+
+    final mbDouble = ref.read(monthlyBudgetProvider);
+    _budgetController.text = mbDouble <= 0 ? '' : mbDouble.toStringAsFixed(0);
+
+    _accentColorValue = ref.read(accentColorValueProvider);
   }
 
   @override
   void dispose() {
     _nameController.dispose();
+    _phoneController.dispose();
     _budgetController.dispose();
     super.dispose();
   }
 
-  Future<void> _saveName() async {
-    final name = _nameController.text.trim();
-    try {
-      final box = Hive.box(AppConstants.settingsBox);
-      await box.put(AppConstants.userNameKey, name);
-      final _ = ref.refresh(userNameProvider);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Name updated'),
-            backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+  String? _validateName(String? input) {
+    final name = (input ?? '').trim();
+    if (name.isEmpty) return 'Please enter your name';
+    if (name.length > AppConstants.maxNameLength) {
+      return 'Name can be max ${AppConstants.maxNameLength} characters';
+    }
+    final ok = RegExp(r'^[A-Za-z ]+$').hasMatch(name);
+    if (!ok) return 'Only letters and spaces are allowed';
+    return null;
+  }
+
+  String? _validatePhone(String? input) {
+    final phone = (input ?? '').trim();
+    if (phone.isEmpty) return null; // optional
+    if (!RegExp(r'^\d{10}$').hasMatch(phone)) {
+      return 'Enter a valid 10-digit phone number';
+    }
+    return null;
+  }
+
+  String? _validateBudget(String? input) {
+    final raw = (input ?? '').replaceAll(',', '').trim();
+    if (raw.isEmpty) return null; // allow 0
+    final value = double.tryParse(raw);
+    if (value == null) return 'Enter a valid amount';
+    if (value < 0) return 'Budget cannot be negative';
+    if (value > AppConstants.maxMonthlyBudget) {
+      return 'Budget cannot exceed ₹10,00,000';
+    }
+    return null;
+  }
+
+  Widget _accentPicker(BuildContext context) {
+    final options = <Color>[
+      Theme.of(context).colorScheme.primary,
+      Theme.of(context).colorScheme.secondary,
+      Theme.of(context).colorScheme.tertiary,
+      AppColors.debit,
+      AppColors.travelColor,
+      AppColors.shoppingColor,
+    ];
+
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: [
+        for (final c in options)
+          GestureDetector(
+            onTap: () => setState(() => _accentColorValue = c.toARGB32()),
+            child: Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: c,
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.onSurface.withValues(
+                        alpha: _accentColorValue == c.toARGB32() ? 0.9 : 0.15,
+                      ),
+                  width: _accentColorValue == c.toARGB32() ? 2 : 1,
+                ),
+              ),
             ),
-            duration: const Duration(milliseconds: 1500),
+          ),
+      ],
+    );
+  }
+
+  void _showCurrencyPicker(BuildContext context) {
+    final current = ref.read(currencySymbolProvider);
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        final theme = Theme.of(ctx);
+        return Container(
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surfaceContainerHighest,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
+          ),
+          child: SafeArea(
+            top: false,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 10),
+                Container(
+                  width: 44,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.outlineVariant,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 18),
+                  child: Row(
+                    children: [
+                      Text('Select currency', style: theme.textTheme.titleMedium),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 10),
+                for (final s in _currencyOptions)
+                  ListTile(
+                    title: Text('Currency: $s'),
+                    trailing: current == s
+                        ? Icon(Icons.check_rounded, color: theme.colorScheme.primary)
+                        : null,
+                    onTap: () async {
+                      await ref.read(currencySymbolProvider.notifier).setSymbol(s);
+                      if (ctx.mounted) Navigator.pop(ctx);
+                    },
+                  ),
+                const SizedBox(height: 10),
+              ],
+            ),
           ),
         );
-      }
-    } catch (_) {}
+      },
+    );
+  }
+
+  Future<void> _saveProfile() async {
+    final ok = _profileFormKey.currentState?.validate() ?? false;
+    if (!ok) return;
+
+    final name = _nameController.text.trim();
+    final phone = _phoneController.text.trim();
+
+    await ref.read(userNameProvider.notifier).setName(name);
+    await ref.read(userPhoneProvider.notifier).setPhone(phone);
+    await ref.read(accentColorValueProvider.notifier).setAccentColorValue(_accentColorValue);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Profile updated'),
+          backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          duration: const Duration(milliseconds: 1500),
+        ),
+      );
+    }
   }
 
   Future<void> _saveBudget() async {
+    final ok = _budgetFormKey.currentState?.validate() ?? false;
+    if (!ok) return;
+
     final raw = _budgetController.text.replaceAll(',', '').trim();
     final value = double.tryParse(raw) ?? 0;
     await ref.read(monthlyBudgetProvider.notifier).setBudget(value);
+
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -88,10 +226,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget build(BuildContext context) {
     final themeMode = ref.watch(themeModeProvider);
     final isDark = themeMode == ThemeMode.dark;
+    final currency = ref.watch(currencySymbolProvider);
     final theme = Theme.of(context);
 
-    return SafeArea(
-      child: SingleChildScrollView(
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: SafeArea(
+        child: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.symmetric(horizontal: 20),
         child: Column(
@@ -116,59 +257,112 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             const SizedBox(height: 12),
             GlassCard(
               padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  TextField(
-                    controller: _nameController,
-                    decoration: InputDecoration(
-                      labelText: 'Your Name',
-                      hintText: 'Enter your name',
-                      prefixIcon: Icon(
-                        Icons.person_rounded,
-                        color: theme.colorScheme.primary,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(
-                          color: theme.colorScheme.outlineVariant,
-                        ),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(
-                          color: theme.colorScheme.outlineVariant,
-                        ),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(
+              child: Form(
+                key: _profileFormKey,
+                autovalidateMode: AutovalidateMode.onUserInteraction,
+                child: Column(
+                  children: [
+                    TextFormField(
+                      controller: _nameController,
+                      maxLength: AppConstants.maxNameLength,
+                      textInputAction: TextInputAction.next,
+                      validator: _validateName,
+                      decoration: InputDecoration(
+                        labelText: 'Your Name',
+                        hintText: 'Enter your name',
+                        prefixIcon: Icon(
+                          Icons.person_rounded,
                           color: theme.colorScheme.primary,
-                          width: 2,
                         ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _saveName,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: theme.colorScheme.primary,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
+                        border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(
+                            color: theme.colorScheme.outlineVariant,
+                          ),
                         ),
-                      ),
-                      child: Text(
-                        'Save Name',
-                        style: theme.textTheme.labelLarge?.copyWith(
-                          color: theme.colorScheme.onPrimary,
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(
+                            color: theme.colorScheme.outlineVariant,
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(
+                            color: theme.colorScheme.primary,
+                            width: 2,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _phoneController,
+                      keyboardType: TextInputType.phone,
+                      textInputAction: TextInputAction.done,
+                      maxLength: 10,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      validator: _validatePhone,
+                      decoration: InputDecoration(
+                        labelText: 'Phone Number (Optional)',
+                        hintText: 'Enter 10-digit phone number',
+                        prefixIcon: Icon(
+                          Icons.phone_rounded,
+                          color: theme.colorScheme.secondary,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(
+                            color: theme.colorScheme.outlineVariant,
+                          ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(
+                            color: theme.colorScheme.outlineVariant,
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(
+                            color: theme.colorScheme.secondary,
+                            width: 2,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Avatar / Accent color',
+                        style: theme.textTheme.labelLarge,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    _accentPicker(context),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: _saveProfile,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: theme.colorScheme.primary,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: Text(
+                          'Save Profile',
+                          style: theme.textTheme.labelLarge?.copyWith(
+                            color: theme.colorScheme.onPrimary,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
 
@@ -179,63 +373,77 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             const SizedBox(height: 12),
             GlassCard(
               padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  TextField(
-                    controller: _budgetController,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: false,
-                      signed: false,
-                    ),
-                    decoration: InputDecoration(
-                      labelText: 'Monthly Budget',
-                      hintText: 'Enter monthly budget',
-                      prefixIcon: Icon(
-                        Icons.currency_rupee_rounded,
-                        color: theme.colorScheme.secondary,
+              child: Form(
+                key: _budgetFormKey,
+                autovalidateMode: AutovalidateMode.onUserInteraction,
+                child: Column(
+                  children: [
+                    TextFormField(
+                      controller: _budgetController,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: false,
+                        signed: false,
                       ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(
-                          color: theme.colorScheme.outlineVariant,
-                        ),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(
-                          color: theme.colorScheme.outlineVariant,
-                        ),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        LengthLimitingTextInputFormatter(7),
+                      ],
+                      validator: _validateBudget,
+                      decoration: InputDecoration(
+                        labelText: 'Monthly Budget',
+                        hintText: 'Enter monthly budget',
+                        prefixText: '$currency ',
+                        prefixStyle: theme.textTheme.titleMedium?.copyWith(
                           color: theme.colorScheme.secondary,
-                          width: 2,
+                          fontWeight: FontWeight.w700,
                         ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _saveBudget,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: theme.colorScheme.secondary,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
+                        prefixIcon: Icon(
+                          Icons.currency_rupee_rounded,
+                          color: theme.colorScheme.secondary,
+                        ),
+                        border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(
+                            color: theme.colorScheme.outlineVariant,
+                          ),
                         ),
-                      ),
-                      child: Text(
-                        'Save Budget',
-                        style: theme.textTheme.labelLarge?.copyWith(
-                          color: theme.colorScheme.onSecondary,
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(
+                            color: theme.colorScheme.outlineVariant,
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(
+                            color: theme.colorScheme.secondary,
+                            width: 2,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: _saveBudget,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: theme.colorScheme.secondary,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: Text(
+                          'Save Budget',
+                          style: theme.textTheme.labelLarge?.copyWith(
+                            color: theme.colorScheme.onSecondary,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
 
@@ -271,9 +479,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     icon: Icons.currency_rupee_rounded,
                     iconColor: theme.colorScheme.secondary,
                     title: 'Currency',
-                    subtitle: 'Indian Rupee (₹)',
-                    trailing: Icon(Icons.chevron_right_rounded,
-                        color: theme.colorScheme.outline),
+                    subtitle: 'Selected: $currency',
+                    onTap: () => _showCurrencyPicker(context),
+                    trailing: Icon(
+                      Icons.chevron_right_rounded,
+                      color: theme.colorScheme.outline,
+                    ),
                   ),
                 ],
               ),
@@ -411,6 +622,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ],
         ),
       ),
+    ),
     );
   }
 
@@ -530,12 +742,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               onPressed: () async {
                 final repo = ref.read(transactionRepositoryProvider);
                 await repo.clearAllData();
-                
+
                 final settingsBox = Hive.box(AppConstants.settingsBox);
                 await settingsBox.clear();
-                
+
+                ref.invalidate(allTransactionsProvider);
+                ref.invalidate(allBudgetsProvider);
+                ref.invalidate(monthlyBudgetProvider);
+                ref.invalidate(userNameProvider);
+                ref.invalidate(userPhoneProvider);
+                ref.invalidate(accentColorValueProvider);
+                ref.invalidate(currencySymbolProvider);
+
                 await ref.read(hasOnboardedProvider.notifier).reset();
-                
+
                 if (ctx.mounted) {
                   Navigator.pop(ctx);
                   Navigator.of(ctx, rootNavigator: true).popUntil((route) => route.isFirst);

@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
 import 'dart:ui';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/models/transaction_model.dart';
+import '../providers/app_providers.dart';
 import 'bubble_hover.dart';
 
-class TransactionTile extends StatelessWidget {
+class TransactionTile extends ConsumerWidget {
   final TransactionModel transaction;
 
   const TransactionTile({super.key, required this.transaction});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final currency = ref.watch(currencySymbolProvider);
     final category = transaction.category;
     final isDebit = transaction.isDebit;
     final amountColor = isDebit ? AppColors.debit : AppColors.credit;
@@ -81,7 +84,7 @@ class TransactionTile extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
-                        '$amountPrefix₹${formatter.format(transaction.amount)}',
+                        '$amountPrefix$currency${formatter.format(transaction.amount)}',
                         style: Theme.of(context).textTheme.titleSmall?.copyWith(
                               color: amountColor,
                               fontWeight: FontWeight.w700,

@@ -17,6 +17,9 @@ class HomeScreen extends ConsumerWidget {
     final transactions = ref.watch(allTransactionsProvider);
     final totalSpent = ref.watch(totalSpentProvider);
     final totalBudget = ref.watch(totalBudgetProvider);
+    final currency = ref.watch(currencySymbolProvider);
+    final rawName = ref.watch(userNameProvider).trim();
+    final displayName = rawName.isEmpty ? 'Hey there' : rawName;
     final recentTransactions = transactions.take(5).toList();
     final formatter = NumberFormat('#,##,###', 'en_IN');
 
@@ -29,37 +32,19 @@ class HomeScreen extends ConsumerWidget {
           children: [
             const SizedBox(height: 24),
             // ─── Greeting ───
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${_getGreeting()} ${ref.watch(userNameProvider)}',
-                      style: Theme.of(context).textTheme.headlineMedium,
-                    ),
-                  ],
+                Text(
+                  _getGreeting(),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.outline,
+                      ),
                 ),
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        Theme.of(context).colorScheme.primary,
-                        Theme.of(context).colorScheme.primaryContainer,
-                      ],
-                    ),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Icon(
-                    Icons.person_rounded,
-                    color: Theme.of(context).colorScheme.onPrimary,
-                    size: 24,
-                  ),
+                const SizedBox(height: 4),
+                Text(
+                  displayName,
+                  style: Theme.of(context).textTheme.headlineMedium,
                 ),
               ],
             ),
@@ -108,7 +93,7 @@ class HomeScreen extends ConsumerWidget {
                       _buildStat(
                         context,
                         'Spent',
-                        '₹${formatter.format(totalSpent)}',
+                        '$currency${formatter.format(totalSpent)}',
                         AppColors.debit,
                       ),
                       Container(
@@ -119,7 +104,7 @@ class HomeScreen extends ConsumerWidget {
                       _buildStat(
                         context,
                         'Remaining',
-                        '₹${formatter.format((totalBudget - totalSpent).clamp(0, double.infinity))}',
+                        '$currency${formatter.format((totalBudget - totalSpent).clamp(0, double.infinity))}',
                         AppColors.credit,
                       ),
                     ],

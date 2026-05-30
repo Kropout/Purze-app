@@ -16,6 +16,7 @@ class AnalyticsScreen extends ConsumerWidget {
     final weeklySpending = ref.watch(weeklySpendingProvider);
     final totalSpent = ref.watch(totalSpentProvider);
     final selectedMonth = ref.watch(selectedMonthProvider);
+    final currency = ref.watch(currencySymbolProvider);
     final formatter = NumberFormat('#,##,###', 'en_IN');
 
     return SafeArea(
@@ -111,7 +112,7 @@ class AnalyticsScreen extends ConsumerWidget {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Text(
-                                    '₹${formatter.format(totalSpent)}',
+                                    '$currency${formatter.format(totalSpent)}',
                                     style: Theme.of(context)
                                         .textTheme
                                         .titleLarge
@@ -143,7 +144,7 @@ class AnalyticsScreen extends ConsumerWidget {
                         context,
                         category.label,
                         category.color,
-                        '₹${formatter.format(entry.value)}',
+                        '$currency${formatter.format(entry.value)}',
                       );
                     }).toList(),
                   ),
@@ -195,7 +196,7 @@ class AnalyticsScreen extends ConsumerWidget {
                               getTitlesWidget: (value, meta) {
                                 if (value == 0) return const SizedBox.shrink();
                                 return Text(
-                                  '₹${(value / 1000).toStringAsFixed(0)}k',
+                                  '$currency${(value / 1000).toStringAsFixed(0)}k',
                                   style: Theme.of(context)
                                       .textTheme
                                       .labelSmall

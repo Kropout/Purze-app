@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hive/hive.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../core/theme/app_colors.dart';
 import '../providers/app_providers.dart';
 import '../widgets/glass_card.dart';
 
@@ -16,29 +17,39 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final _pageController = PageController();
+
+  final _nameFormKey = GlobalKey<FormState>();
+  final _budgetFormKey = GlobalKey<FormState>();
+
   final _nameController = TextEditingController();
+  final _phoneController = TextEditingController();
   final _budgetController = TextEditingController();
 
   int _step = 0;
   bool _requestingSms = false;
 
+  int _accentColorValue = AppColors.primary.toARGB32();
+
+  static const List<String> _currencyOptions = <String>['₹', r'$', '€', '£'];
+
   @override
   void initState() {
     super.initState();
-    try {
-      final box = Hive.box(AppConstants.settingsBox);
-      _nameController.text = (box.get(AppConstants.userNameKey) as String?) ?? '';
 
-      final mb = box.get(AppConstants.monthlyBudgetKey, defaultValue: 0);
-      final mbDouble = mb is int ? mb.toDouble() : (mb is double ? mb : 0.0);
-      _budgetController.text = mbDouble <= 0 ? '' : mbDouble.toStringAsFixed(0);
-    } catch (_) {}
+    _nameController.text = ref.read(userNameProvider);
+    _phoneController.text = ref.read(userPhoneProvider);
+
+    final mbDouble = ref.read(monthlyBudgetProvider);
+    _budgetController.text = mbDouble <= 0 ? '' : mbDouble.toStringAsFixed(0);
+
+    _accentColorValue = ref.read(accentColorValueProvider);
   }
 
   @override
   void dispose() {
     _pageController.dispose();
     _nameController.dispose();
+    _phoneController.dispose();
     _budgetController.dispose();
     super.dispose();
   }
@@ -61,12 +72,45 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     );
   }
 
-  Future<void> _saveName() async {
+  String? _validateName(String? input) {
+    final name = (input ?? '').trim();
+    if (name.isEmpty) return 'Please enter your name';
+    if (name.length > AppConstants.maxNameLength) {
+      return 'Name can be max ${AppConstants.maxNameLength} characters';
+    }
+    final ok = RegExp(r'^[A-Za-z ]+$').hasMatch(name);
+    if (!ok) return 'Only letters and spaces are allowed';
+    return null;
+  }
+
+  String? _validatePhone(String? input) {
+    final phone = (input ?? '').trim();
+    if (phone.isEmpty) return null; // optional
+    if (!RegExp(r'^\d{10}$').hasMatch(phone)) {
+      return 'Enter a valid 10-digit phone number';
+    }
+    return null;
+  }
+
+  String? _validateBudget(String? input) {
+    final raw = (input ?? '').replaceAll(',', '').trim();
+    if (raw.isEmpty) return null; // allow 0
+    final value = double.tryParse(raw);
+    if (value == null) return 'Enter a valid amount';
+    if (value < 0) return 'Budget cannot be negative';
+    if (value > AppConstants.maxMonthlyBudget) {
+      return 'Budget cannot exceed ₹10,00,000';
+    }
+    return null;
+  }
+
+  Future<void> _saveProfile() async {
     final name = _nameController.text.trim();
-    try {
-      final box = Hive.box(AppConstants.settingsBox);
-      await box.put(AppConstants.userNameKey, name);
-    } catch (_) {}
+    final phone = _phoneController.text.trim();
+
+    await ref.read(userNameProvider.notifier).setName(name);
+    await ref.read(userPhoneProvider.notifier).setPhone(phone);
+    await ref.read(accentColorValueProvider.notifier).setAccentColorValue(_accentColorValue);
   }
 
   Future<void> _saveMonthlyBudget() async {
@@ -110,10 +154,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         const SizedBox(height: 8),
         Text(
           subtitle,
-          style: Theme.of(context)
-              .textTheme
-              .bodySmall
-              ?.copyWith(color: Theme.of(context).colorScheme.outline),
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.outline,
+              ),
         ),
       ],
     );
@@ -130,8 +173,59 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     );
   }
 
+  Widget _page(Widget child) {
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      child: Padding(
+        padding: const EdgeInsets.only(top: 8, bottom: 24),
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: child,
+        ),
+      ),
+    );
+  }
+
+  Widget _accentPicker(BuildContext context) {
+    final options = <Color>[
+      Theme.of(context).colorScheme.primary,
+      Theme.of(context).colorScheme.secondary,
+      Theme.of(context).colorScheme.tertiary,
+      AppColors.debit,
+      AppColors.travelColor,
+      AppColors.shoppingColor,
+    ];
+
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: [
+        for (final c in options)
+          GestureDetector(
+            onTap: () => setState(() => _accentColorValue = c.toARGB32()),
+            child: Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: c,
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.onSurface.withValues(
+                        alpha: _accentColorValue == c.toARGB32() ? 0.9 : 0.15,
+                      ),
+                  width: _accentColorValue == c.toARGB32() ? 2 : 1,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final currency = ref.watch(currencySymbolProvider);
+
     return Scaffold(
       body: SafeArea(
         child: Padding(
@@ -145,10 +239,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 children: [
                   Text(
                     'Step ${_step + 1}/5',
-                    style: Theme.of(context)
-                        .textTheme
-                        .labelSmall
-                        ?.copyWith(color: Theme.of(context).colorScheme.outline),
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: Theme.of(context).colorScheme.outline,
+                        ),
                   ),
                   if (_step > 0)
                     TextButton(
@@ -165,141 +258,212 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   onPageChanged: (i) => setState(() => _step = i),
                   children: [
                     // 1) Welcome
-                    GlassCard(
-                      showGlow: true,
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _stepHeader(
-                            context,
-                            'Welcome to Purze',
-                            'Let\'s set up your account in under a minute.',
-                          ),
-                          const Spacer(),
-                          _primaryButton(
-                            label: 'Get Started',
-                            onPressed: _goNext,
-                          ),
-                        ],
+                    _page(
+                      GlassCard(
+                        showGlow: true,
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _stepHeader(
+                              context,
+                              'Welcome to Purze',
+                              'Let\'s set up your account in under a minute.',
+                            ),
+                            const SizedBox(height: 24),
+                            _primaryButton(
+                              label: 'Get Started',
+                              onPressed: _goNext,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
 
-                    // 2) Enter name
-                    GlassCard(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _stepHeader(
-                            context,
-                            'Your name',
-                            'This helps us personalize your home screen.',
+                    // 2) Profile
+                    _page(
+                      GlassCard(
+                        padding: const EdgeInsets.all(24),
+                        child: Form(
+                          key: _nameFormKey,
+                          autovalidateMode: AutovalidateMode.onUserInteraction,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _stepHeader(
+                                context,
+                                'Your profile',
+                                'Name is used for greeting. Phone is optional.',
+                              ),
+                              const SizedBox(height: 18),
+                              TextFormField(
+                                controller: _nameController,
+                                textInputAction: TextInputAction.next,
+                                maxLength: AppConstants.maxNameLength,
+                                validator: _validateName,
+                                decoration: const InputDecoration(
+                                  hintText: 'Enter your name',
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              TextFormField(
+                                controller: _phoneController,
+                                keyboardType: TextInputType.phone,
+                                textInputAction: TextInputAction.done,
+                                maxLength: 10,
+                                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                                validator: _validatePhone,
+                                decoration: const InputDecoration(
+                                  hintText: 'Phone number (optional)',
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                'Avatar / Accent color',
+                                style: Theme.of(context).textTheme.labelLarge,
+                              ),
+                              const SizedBox(height: 10),
+                              _accentPicker(context),
+                              const SizedBox(height: 18),
+                              Builder(
+                                builder: (context) {
+                                  final selectedCurrency = _currencyOptions.contains(currency)
+                                      ? currency
+                                      : AppConstants.defaultCurrencySymbol;
+                                  return DropdownButtonFormField<String>(
+                                    key: ValueKey(selectedCurrency),
+                                    initialValue: selectedCurrency,
+                                    items: [
+                                      for (final s in _currencyOptions)
+                                        DropdownMenuItem(
+                                          value: s,
+                                          child: Text('Currency: $s'),
+                                        ),
+                                    ],
+                                    onChanged: (v) async {
+                                      if (v == null) return;
+                                      await ref.read(currencySymbolProvider.notifier).setSymbol(v);
+                                    },
+                                    decoration: const InputDecoration(
+                                      hintText: 'Select currency',
+                                    ),
+                                  );
+                                },
+                              ),
+                              const SizedBox(height: 18),
+                              _primaryButton(
+                                label: 'Continue',
+                                onPressed: () async {
+                                  final ok = _nameFormKey.currentState?.validate() ?? false;
+                                  if (!ok) return;
+                                  await _saveProfile();
+                                  if (mounted) await _goNext();
+                                },
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 18),
-                          TextField(
-                            controller: _nameController,
-                            textInputAction: TextInputAction.done,
-                            decoration: const InputDecoration(
-                              hintText: 'Enter your name',
-                            ),
-                          ),
-                          const Spacer(),
-                          _primaryButton(
-                            label: 'Continue',
-                            onPressed: () async {
-                              await _saveName();
-                              if (mounted) await _goNext();
-                            },
-                          ),
-                        ],
+                        ),
                       ),
                     ),
 
                     // 3) Set monthly budget
-                    GlassCard(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _stepHeader(
-                            context,
-                            'Monthly budget',
-                            'Set a budget in ₹. You can change it later.',
+                    _page(
+                      GlassCard(
+                        padding: const EdgeInsets.all(24),
+                        child: Form(
+                          key: _budgetFormKey,
+                          autovalidateMode: AutovalidateMode.onUserInteraction,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _stepHeader(
+                                context,
+                                'Monthly budget',
+                                'Set a budget in $currency. You can change it later.',
+                              ),
+                              const SizedBox(height: 18),
+                              TextFormField(
+                                controller: _budgetController,
+                                keyboardType: TextInputType.number,
+                                textInputAction: TextInputAction.done,
+                                validator: _validateBudget,
+                                decoration: InputDecoration(
+                                  prefixText: '$currency ',
+                                  hintText: '0',
+                                ),
+                              ),
+                              const SizedBox(height: 18),
+                              _primaryButton(
+                                label: 'Continue',
+                                onPressed: () async {
+                                  final ok = _budgetFormKey.currentState?.validate() ?? false;
+                                  if (!ok) return;
+                                  await _saveMonthlyBudget();
+                                  if (mounted) await _goNext();
+                                },
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 18),
-                          TextField(
-                            controller: _budgetController,
-                            keyboardType: TextInputType.number,
-                            textInputAction: TextInputAction.done,
-                            decoration: const InputDecoration(
-                              prefixText: '₹ ',
-                              hintText: '0',
-                            ),
-                          ),
-                          const Spacer(),
-                          _primaryButton(
-                            label: 'Continue',
-                            onPressed: () async {
-                              await _saveMonthlyBudget();
-                              if (mounted) await _goNext();
-                            },
-                          ),
-                        ],
+                        ),
                       ),
                     ),
 
                     // 4) SMS permission
-                    GlassCard(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _stepHeader(
-                            context,
-                            'SMS permission',
-                            'We read UPI SMS to track transactions. Your data never leaves your device.',
-                          ),
-                          const Spacer(),
-                          _primaryButton(
-                            label: _requestingSms ? 'Requesting…' : 'Allow SMS access',
-                            onPressed: _requestingSms
-                                ? null
-                                : () => _requestSmsPermission(allowSkip: false),
-                          ),
-                          const SizedBox(height: 8),
-                          Center(
-                            child: TextButton(
-                              onPressed: _requestingSms
-                                  ? null
-                                  : () => _requestSmsPermission(allowSkip: true),
-                              child: const Text('Not now'),
+                    _page(
+                      GlassCard(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _stepHeader(
+                              context,
+                              'SMS permission',
+                              'We read UPI SMS to track transactions. Your data never leaves your device.',
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 24),
+                            _primaryButton(
+                              label: _requestingSms ? 'Requesting…' : 'Allow SMS access',
+                              onPressed: _requestingSms ? null : () => _requestSmsPermission(allowSkip: false),
+                            ),
+                            const SizedBox(height: 8),
+                            Center(
+                              child: TextButton(
+                                onPressed: _requestingSms ? null : () => _requestSmsPermission(allowSkip: true),
+                                child: const Text('Not now'),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
 
                     // 5) Done
-                    GlassCard(
-                      showGlow: true,
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _stepHeader(
-                            context,
-                            'All set!',
-                            'Welcome to Purze.',
-                          ),
-                          const Spacer(),
-                          _primaryButton(
-                            label: 'Done',
-                            onPressed: () async {
-                              await ref.read(hasOnboardedProvider.notifier).complete();
-                            },
-                          ),
-                        ],
+                    _page(
+                      GlassCard(
+                        showGlow: true,
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _stepHeader(
+                              context,
+                              'All set!',
+                              'Welcome to Purze.',
+                            ),
+                            const SizedBox(height: 24),
+                            _primaryButton(
+                              label: 'Done',
+                              onPressed: () async {
+                                await ref.read(hasOnboardedProvider.notifier).complete();
+                              },
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ],

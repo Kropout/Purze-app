@@ -16,6 +16,7 @@ class BudgetScreen extends ConsumerWidget {
     final spending = ref.watch(spendingByCategoryProvider);
     final totalSpent = ref.watch(totalSpentProvider);
     final totalBudget = ref.watch(totalBudgetProvider);
+    final currency = ref.watch(currencySymbolProvider);
     final formatter = NumberFormat('#,##,###', 'en_IN');
 
     return SafeArea(
@@ -60,7 +61,7 @@ class BudgetScreen extends ConsumerWidget {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            '₹${formatter.format(totalBudget)}',
+                            '$currency${formatter.format(totalBudget)}',
                             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -78,7 +79,7 @@ class BudgetScreen extends ConsumerWidget {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            '₹${formatter.format(totalSpent)}',
+                            '$currency${formatter.format(totalSpent)}',
                             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                                   fontWeight: FontWeight.w700,
                                   color: totalSpent > totalBudget
@@ -106,7 +107,7 @@ class BudgetScreen extends ConsumerWidget {
                             ),
                       ),
                       Text(
-                        '₹${formatter.format((totalBudget - totalSpent).clamp(0, double.infinity))} remaining',
+                        '$currency${formatter.format((totalBudget - totalSpent).clamp(0, double.infinity))} remaining',
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
                               color: AppColors.primary,
                             ),
@@ -153,6 +154,7 @@ class BudgetScreen extends ConsumerWidget {
     double spent,
     NumberFormat formatter,
   ) {
+    final currency = ref.watch(currencySymbolProvider);
     final category = TransactionCategory.values[categoryIndex];
     final progress = limit > 0 ? spent / limit : 0.0;
     final isOverBudget = spent > limit;
@@ -189,7 +191,7 @@ class BudgetScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '₹${formatter.format(spent)} / ₹${formatter.format(limit)}',
+                      '$currency${formatter.format(spent)} / $currency${formatter.format(limit)}',
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
                             color: AppColors.outline,
                           ),
@@ -230,7 +232,7 @@ class BudgetScreen extends ConsumerWidget {
                     size: 14, color: AppColors.debit),
                 const SizedBox(width: 4),
                 Text(
-                  'Over budget by ₹${formatter.format(spent - limit)}',
+                  'Over budget by $currency${formatter.format(spent - limit)}',
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
                         color: AppColors.debit,
                       ),
@@ -245,6 +247,7 @@ class BudgetScreen extends ConsumerWidget {
 
   void _showEditBudgetDialog(
       BuildContext context, WidgetRef ref, int categoryIndex, double currentLimit) {
+    final currency = ref.read(currencySymbolProvider);
     final controller = TextEditingController(text: currentLimit.toStringAsFixed(0));
     final category = TransactionCategory.values[categoryIndex];
 
@@ -276,7 +279,7 @@ class BudgetScreen extends ConsumerWidget {
                       fontWeight: FontWeight.w600,
                     ),
                 decoration: InputDecoration(
-                  prefixText: '₹ ',
+                  prefixText: '$currency ',
                   prefixStyle: Theme.of(context).textTheme.headlineSmall?.copyWith(
                         color: AppColors.primary,
                         fontWeight: FontWeight.w600,
