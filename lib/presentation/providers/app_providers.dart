@@ -36,6 +36,14 @@ class HasOnboardedNotifier extends StateNotifier<bool> {
       await box.put(AppConstants.hasOnboardedKey, true);
     } catch (_) {}
   }
+
+  Future<void> reset() async {
+    state = false;
+    try {
+      final box = Hive.box(AppConstants.settingsBox);
+      await box.put(AppConstants.hasOnboardedKey, false);
+    } catch (_) {}
+  }
 }
 
 // ─── User ───

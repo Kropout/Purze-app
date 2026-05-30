@@ -1,14 +1,91 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hive/hive.dart';
+import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_colors.dart';
 import '../providers/app_providers.dart';
 import '../widgets/glass_card.dart';
 
-class SettingsScreen extends ConsumerWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  late TextEditingController _nameController;
+  late TextEditingController _budgetController;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController();
+    _budgetController = TextEditingController();
+    _loadUserData();
+  }
+
+  void _loadUserData() {
+    try {
+      final box = Hive.box(AppConstants.settingsBox);
+      _nameController.text = (box.get(AppConstants.userNameKey) as String?) ?? '';
+      
+      final mb = box.get(AppConstants.monthlyBudgetKey, defaultValue: 0);
+      final mbDouble = mb is int ? mb.toDouble() : (mb is double ? mb : 0.0);
+      _budgetController.text = mbDouble <= 0 ? '' : mbDouble.toStringAsFixed(0);
+    } catch (_) {}
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _budgetController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _saveName() async {
+    final name = _nameController.text.trim();
+    try {
+      final box = Hive.box(AppConstants.settingsBox);
+      await box.put(AppConstants.userNameKey, name);
+      final _ = ref.refresh(userNameProvider);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Name updated'),
+            backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            duration: const Duration(milliseconds: 1500),
+          ),
+        );
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _saveBudget() async {
+    final raw = _budgetController.text.replaceAll(',', '').trim();
+    final value = double.tryParse(raw) ?? 0;
+    await ref.read(monthlyBudgetProvider.notifier).setBudget(value);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Budget updated'),
+          backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          duration: const Duration(milliseconds: 1500),
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final themeMode = ref.watch(themeModeProvider);
     final isDark = themeMode == ThemeMode.dark;
     final theme = Theme.of(context);
@@ -33,6 +110,136 @@ class SettingsScreen extends ConsumerWidget {
                   ),
             ),
             const SizedBox(height: 32),
+
+            // ─── Profile Section ───
+            _buildSectionHeader(context, 'Profile'),
+            const SizedBox(height: 12),
+            GlassCard(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  TextField(
+                    controller: _nameController,
+                    decoration: InputDecoration(
+                      labelText: 'Your Name',
+                      hintText: 'Enter your name',
+                      prefixIcon: Icon(
+                        Icons.person_rounded,
+                        color: theme.colorScheme.primary,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: theme.colorScheme.outlineVariant,
+                        ),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: theme.colorScheme.outlineVariant,
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: theme.colorScheme.primary,
+                          width: 2,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _saveName,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: theme.colorScheme.primary,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Text(
+                        'Save Name',
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          color: theme.colorScheme.onPrimary,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 28),
+
+            // ─── Budget Section ───
+            _buildSectionHeader(context, 'Budget'),
+            const SizedBox(height: 12),
+            GlassCard(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  TextField(
+                    controller: _budgetController,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: false,
+                      signed: false,
+                    ),
+                    decoration: InputDecoration(
+                      labelText: 'Monthly Budget',
+                      hintText: 'Enter monthly budget',
+                      prefixIcon: Icon(
+                        Icons.currency_rupee_rounded,
+                        color: theme.colorScheme.secondary,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: theme.colorScheme.outlineVariant,
+                        ),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: theme.colorScheme.outlineVariant,
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: theme.colorScheme.secondary,
+                          width: 2,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _saveBudget,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: theme.colorScheme.secondary,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Text(
+                        'Save Budget',
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          color: theme.colorScheme.onSecondary,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 28),
 
             // ─── Appearance Section ───
             _buildSectionHeader(context, 'Appearance'),
@@ -110,7 +317,7 @@ class SettingsScreen extends ConsumerWidget {
                     title: 'Clear All Data',
                     subtitle: 'Delete all transactions and budgets',
                     onTap: () {
-                      _showClearDataDialog(context, ref);
+                      _showClearDataDialog(context);
                     },
                     trailing: Icon(Icons.chevron_right_rounded,
                         color: theme.colorScheme.outline),
@@ -141,19 +348,36 @@ class SettingsScreen extends ConsumerWidget {
                     context,
                     icon: Icons.shield_outlined,
                     iconColor: theme.colorScheme.secondary,
-                    title: 'Privacy',
-                    subtitle: 'All data stays on your device',
-                    trailing: Icon(Icons.verified_rounded,
-                        color: theme.colorScheme.primary, size: 20),
+                    title: 'Privacy Policy',
+                    subtitle: 'Read our privacy policy',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const PrivacyPolicyScreen(),
+                        ),
+                      );
+                    },
+                    trailing: Icon(Icons.chevron_right_rounded,
+                        color: theme.colorScheme.outline),
                   ),
                   _buildDivider(context),
                   _buildSettingTile(
                     context,
-                    icon: Icons.code_rounded,
+                    icon: Icons.description_outlined,
                     iconColor: theme.colorScheme.tertiary,
-                    title: 'Built With',
-                    subtitle: 'Flutter + Riverpod + Hive',
-                    trailing: const SizedBox.shrink(),
+                    title: 'Terms & Conditions',
+                    subtitle: 'Read our terms & conditions',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const TermsConditionsScreen(),
+                        ),
+                      );
+                    },
+                    trailing: Icon(Icons.chevron_right_rounded,
+                        color: theme.colorScheme.outline),
                   ),
                 ],
               ),
@@ -262,7 +486,7 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  void _showClearDataDialog(BuildContext context, WidgetRef ref) {
+  void _showClearDataDialog(BuildContext context) {
     showDialog(
       context: context,
       builder: (ctx) {
@@ -284,7 +508,7 @@ class SettingsScreen extends ConsumerWidget {
             ],
           ),
           content: Text(
-            'This will permanently delete all your transactions and budget data. This action cannot be undone.',
+            'Are you sure? This will delete all transactions and reset the app.',
             style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
@@ -306,20 +530,15 @@ class SettingsScreen extends ConsumerWidget {
               onPressed: () async {
                 final repo = ref.read(transactionRepositoryProvider);
                 await repo.clearAllData();
-                ref.read(allTransactionsProvider.notifier).refresh();
-                ref.read(allBudgetsProvider.notifier).refresh();
+                
+                final settingsBox = Hive.box(AppConstants.settingsBox);
+                await settingsBox.clear();
+                
+                await ref.read(hasOnboardedProvider.notifier).reset();
+                
                 if (ctx.mounted) {
                   Navigator.pop(ctx);
-                  ScaffoldMessenger.of(ctx).showSnackBar(
-                    SnackBar(
-                      content: const Text('All data cleared'),
-                      backgroundColor: Theme.of(ctx).colorScheme.surfaceContainerHighest,
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  );
+                  Navigator.of(ctx, rootNavigator: true).popUntil((route) => route.isFirst);
                 }
               },
               child: const Text('Clear'),
@@ -327,6 +546,205 @@ class SettingsScreen extends ConsumerWidget {
           ],
         );
       },
+    );
+  }
+}
+
+class PrivacyPolicyScreen extends StatelessWidget {
+  const PrivacyPolicyScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          'Privacy Policy',
+          style: theme.textTheme.headlineSmall,
+        ),
+        centerTitle: true,
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Your Privacy Matters',
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Purze is designed with your privacy as a top priority. All your financial data stays on your device. We do not collect, store, or transmit any of your personal information or transaction data to external servers.',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  height: 1.6,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Data Storage',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'All transactions, budgets, and settings are stored locally on your device using Hive database. No data is ever sent to our servers.',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  height: 1.6,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Data Usage',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Your data is used solely for the purpose of helping you manage your finances. We do not share, sell, or analyze your personal data.',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  height: 1.6,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Permissions',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Purze may request permissions for specific features, but these are optional and only used for the features you choose to enable.',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  height: 1.6,
+                ),
+              ),
+              const SizedBox(height: 48),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class TermsConditionsScreen extends StatelessWidget {
+  const TermsConditionsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          'Terms & Conditions',
+          style: theme.textTheme.headlineSmall,
+        ),
+        centerTitle: true,
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Terms & Conditions',
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'By using Purze, you agree to these terms and conditions. Please read them carefully.',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  height: 1.6,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Use License',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'We grant you a limited, non-exclusive, and non-transferable license to use Purze for personal financial management purposes only.',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  height: 1.6,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Disclaimer',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Purze is provided "as is" without warranties of any kind. We do not guarantee accuracy, reliability, or completeness of the app. You use the app at your own risk.',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  height: 1.6,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Limitation of Liability',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'In no event shall Purze be liable for any damages arising from your use of the app, including but not limited to financial losses.',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  height: 1.6,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Changes to Terms',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'We may update these terms at any time. Continued use of the app constitutes acceptance of any changes.',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  height: 1.6,
+                ),
+              ),
+              const SizedBox(height: 48),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
