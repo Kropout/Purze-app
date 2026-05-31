@@ -416,6 +416,31 @@ final pinAuthProvider = Provider<PinAuth>((ref) {
   return PinAuth(ref: ref);
 });
 
+class LockTimeoutNotifier extends StateNotifier<int> {
+  LockTimeoutNotifier() : super(_readInitial());
+
+  static int _readInitial() {
+    try {
+      final box = Hive.box(AppConstants.settingsBox);
+      return box.get(AppConstants.lockTimeoutKey, defaultValue: 5) as int;
+    } catch (_) {
+      return 5;
+    }
+  }
+
+  Future<void> setTimeoutMinutes(int minutes) async {
+    state = minutes;
+    try {
+      final box = Hive.box(AppConstants.settingsBox);
+      await box.put(AppConstants.lockTimeoutKey, minutes);
+    } catch (_) {}
+  }
+}
+
+final lockTimeoutProvider = StateNotifierProvider<LockTimeoutNotifier, int>((ref) {
+  return LockTimeoutNotifier();
+});
+
 class PinAuth {
   final Ref ref;
   PinAuth({required this.ref});
@@ -432,15 +457,17 @@ class PinAuth {
     await _box.put(AppConstants.pinHashKey, hash);
     await _box.put(AppConstants.failedAttemptsKey, 0);
     await _box.delete(AppConstants.lockUntilKey);
+    await _box.flush();
   }
 
   Future<bool> verifyPin(String pin) async {
-    final stored = _box.get(AppConstants.pinHashKey) as String?;
-    if (stored == null) return false;
+    final stored = (_box.get(AppConstants.pinHashKey) as String?)?.trim();
+    if (stored == null || stored.isEmpty) return false;
     final hash = sha256.convert(utf8.encode(pin)).toString();
     if (hash == stored) {
       await _box.put(AppConstants.failedAttemptsKey, 0);
       await _box.delete(AppConstants.lockUntilKey);
+      await _box.flush();
       return true;
     }
 
@@ -451,6 +478,7 @@ class PinAuth {
       await _box.put(AppConstants.lockUntilKey, lockUntil.toIso8601String());
       await _box.put(AppConstants.failedAttemptsKey, 0);
     }
+    await _box.flush();
     return false;
   }
 
@@ -483,6 +511,7 @@ class PinAuth {
 
   Future<void> setBiometricEnabled(bool enabled) async {
     await _box.put(AppConstants.biometricEnabledKey, enabled);
+    await _box.flush();
   }
 
   Future<void> clearPin() async {
@@ -490,5 +519,22 @@ class PinAuth {
     await _box.delete(AppConstants.failedAttemptsKey);
     await _box.delete(AppConstants.lockUntilKey);
     await _box.delete(AppConstants.biometricEnabledKey);
+    await _box.flush();
+  }
+
+  Future<void> updateLastActive() async {
+    try {
+      await _box.put(AppConstants.lastActiveKey, DateTime.now().toIso8601String());
+    } catch (_) {}
+  }
+
+  DateTime? getLastActive() {
+    try {
+      final s = _box.get(AppConstants.lastActiveKey) as String?;
+      if (s == null) return null;
+      return DateTime.parse(s);
+    } catch (_) {
+      return null;
+    }
   }
 }

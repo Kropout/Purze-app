@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
+import 'package:local_auth/local_auth.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_colors.dart';
 import '../providers/app_providers.dart';
@@ -27,6 +28,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   static const List<String> _currencyOptions = <String>['₹', r'$', '€', '£'];
 
+  bool _biometricAvailable = false;
+
   @override
   void initState() {
     super.initState();
@@ -43,6 +46,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _startingBalanceController.text = sb <= 0 ? '' : sb.toStringAsFixed(0);
 
     _accentColorValue = ref.read(accentColorValueProvider);
+
+    // Check biometric support
+    _checkBiometricSupport();
+  }
+
+  Future<void> _checkBiometricSupport() async {
+    try {
+      final auth = LocalAuthentication();
+      final canCheck = await auth.canCheckBiometrics || await auth.isDeviceSupported();
+      final enrolled = (await auth.getAvailableBiometrics()).isNotEmpty;
+      if (mounted) setState(() => _biometricAvailable = canCheck && enrolled);
+    } catch (_) {
+      if (mounted) setState(() => _biometricAvailable = false);
+    }
   }
 
   @override
@@ -536,23 +553,95 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               padding: const EdgeInsets.all(0),
               child: Column(
                 children: [
+                  // Lock timeout selector
+                  _buildSettingTile(
+                    context,
+                    icon: Icons.lock_clock,
+                    iconColor: theme.colorScheme.primary,
+                    title: 'Auto-lock timeout',
+                    subtitle: '${ref.watch(lockTimeoutProvider)} minutes',
+                    onTap: () async {
+                      final options = <int>[0, 1, 5, 10, 15, 20, 30, 60];
+                      final labels = ['Immediately', '1 min', '5 mins', '10 mins', '15 mins', '20 mins', '30 mins', '1 hour'];
+                      final choice = await showDialog<int?>(
+                        context: context,
+                        builder: (ctx) {
+                          return SimpleDialog(
+                            title: const Text('Select auto-lock timeout'),
+                            children: [
+                              for (var i = 0; i < options.length; i++)
+                                SimpleDialogOption(
+                                  onPressed: () => Navigator.pop(ctx, options[i]),
+                                  child: Text(labels[i]),
+                                )
+                            ],
+                          );
+                        },
+                      );
+
+                      if (choice != null) await ref.read(lockTimeoutProvider.notifier).setTimeoutMinutes(choice);
+                    },
+                    trailing: Icon(Icons.chevron_right_rounded, color: theme.colorScheme.outline),
+                  ),
+                  _buildDivider(context),
                   Consumer(builder: (context, ref, _) {
-                    final pinAuth = ref.watch(pinAuthProvider);
-                    return _buildSettingTile(
-                      context,
-                      icon: Icons.fingerprint,
-                      iconColor: theme.colorScheme.primary,
-                      title: 'Biometric Login',
-                      subtitle: pinAuth.isBiometricEnabled() ? 'Enabled' : 'Disabled',
-                      onTap: () async {
-                        final enabled = !pinAuth.isBiometricEnabled();
-                        await ref.read(pinAuthProvider).setBiometricEnabled(enabled);
-                        setState(() {});
+                    // show biometric toggle only if device supports it
+                    return FutureBuilder<bool>(
+                      future: Future.value(_biometricAvailable),
+                      builder: (ctx, snap) {
+                        final available = snap.data ?? false;
+                        if (!available) return const SizedBox.shrink();
+                        final pinAuth = ref.watch(pinAuthProvider);
+                        return _buildSettingTile(
+                          context,
+                          icon: Icons.fingerprint,
+                          iconColor: theme.colorScheme.primary,
+                          title: 'Biometric Login',
+                          subtitle: pinAuth.isBiometricEnabled() ? 'Enabled' : 'Disabled',
+                          onTap: () async {
+                            final enabled = !pinAuth.isBiometricEnabled();
+                            if (enabled) {
+                              // check availability and enrollment
+                              try {
+                                final auth = LocalAuthentication();
+                                final canCheck = await auth.canCheckBiometrics || await auth.isDeviceSupported();
+                                final enrolled = (await auth.getAvailableBiometrics()).isNotEmpty;
+                                if (!canCheck || !enrolled) {
+                                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Biometric not available, please use PIN')));
+                                  return;
+                                }
+                              } catch (_) {
+                                if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Biometric not available, please use PIN')));
+                                return;
+                              }
+                            }
+
+                            await ref.read(pinAuthProvider).setBiometricEnabled(enabled);
+                            setState(() {});
+                          },
+                          trailing: Switch(
+                            value: ref.watch(pinAuthProvider).isBiometricEnabled(),
+                            onChanged: (v) async {
+                              if (v) {
+                                try {
+                                  final auth = LocalAuthentication();
+                                  final canCheck = await auth.canCheckBiometrics || await auth.isDeviceSupported();
+                                  final enrolled = (await auth.getAvailableBiometrics()).isNotEmpty;
+                                  if (!canCheck || !enrolled) {
+                                    if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Biometric not available, please use PIN')));
+                                    return;
+                                  }
+                                } catch (_) {
+                                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Biometric not available, please use PIN')));
+                                  return;
+                                }
+                              }
+                              await ref.read(pinAuthProvider).setBiometricEnabled(v);
+                              setState(() {});
+                            },
+                          ),
+                        );
                       },
-                      trailing: Switch(
-                        value: ref.watch(pinAuthProvider).isBiometricEnabled(),
-                        onChanged: (v) async => await ref.read(pinAuthProvider).setBiometricEnabled(v),
-                      ),
                     );
                   }),
                   _buildDivider(context),

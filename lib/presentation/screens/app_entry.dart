@@ -29,6 +29,12 @@ class _AppEntryState extends ConsumerState<AppEntry> with WidgetsBindingObserver
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    final pinAuth = ref.read(pinAuthProvider);
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      // record last active time
+      pinAuth.updateLastActive();
+    }
+
     if (state == AppLifecycleState.resumed) {
       _maybeShowLock();
     }
@@ -38,8 +44,26 @@ class _AppEntryState extends ConsumerState<AppEntry> with WidgetsBindingObserver
     final hasOnboarded = ref.read(hasOnboardedProvider);
     final pinAuth = ref.read(pinAuthProvider);
     if (!hasOnboarded) return;
-    if (pinAuth.isPinSet()) {
-      // push lock screen
+    if (!pinAuth.isPinSet()) return;
+
+    final timeoutMinutes = ref.read(lockTimeoutProvider);
+    // Immediately option
+    if (timeoutMinutes == 0) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const LockScreen()));
+      });
+      return;
+    }
+
+    final last = pinAuth.getLastActive();
+    if (last == null) {
+      // No record — set now and don't lock
+      pinAuth.updateLastActive();
+      return;
+    }
+
+    final diff = DateTime.now().difference(last);
+    if (diff.inMinutes >= timeoutMinutes) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         Navigator.of(context).push(MaterialPageRoute(builder: (_) => const LockScreen()));
       });

@@ -26,6 +26,10 @@ class AppConstants {
   static const String failedAttemptsKey = 'failedAttempts';
   static const String lockUntilKey = 'lockUntil';
 
+  // Auto-lock settings
+  static const String lockTimeoutKey = 'lockTimeoutMinutes'; // 0 = Immediately
+  static const String lastActiveKey = 'lastActive';
+
   // Validation limits
   static const int maxNameLength = 20;
   static const int maxMonthlyBudget = 1000000; // ₹10,00,000
