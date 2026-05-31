@@ -12,10 +12,16 @@ class AnalyticsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final spending = ref.watch(spendingByCategoryProvider);
-    final weeklySpending = ref.watch(weeklySpendingProvider);
-    final totalSpent = ref.watch(totalSpentProvider);
     final selectedMonth = ref.watch(selectedMonthProvider);
+    final spending = ref.watch(spendingByCategoryForMonthProvider(selectedMonth));
+    final weeklySpending = ref.watch(weeklySpendingForMonthProvider(selectedMonth));
+    final monthlyTrend = ref.watch(monthlyTrendProvider(selectedMonth));
+    final topMerchants = ref.watch(topMerchantsProvider(selectedMonth));
+    final nonEssential = ref.watch(nonEssentialSpendingProvider(selectedMonth));
+    final biggestExpense = ref.watch(biggestExpenseProvider(selectedMonth));
+    final essentialSplit = ref.watch(essentialSplitProvider(selectedMonth));
+
+    final totalSpent = monthlyTrend.isNotEmpty ? monthlyTrend.last : 0.0;
     final currency = ref.watch(currencySymbolProvider);
     final formatter = NumberFormat('#,##,###', 'en_IN');
 
@@ -177,7 +183,7 @@ class AnalyticsScreen extends ConsumerWidget {
                     child: BarChart(
                       BarChartData(
                         alignment: BarChartAlignment.spaceAround,
-                        maxY: _getMaxWeekly(weeklySpending) * 1.2,
+                        maxY: (_getMaxWeekly(weeklySpending) <= 0 ? 1000 : _getMaxWeekly(weeklySpending)) * 1.2,
                         barTouchData: BarTouchData(
                           enabled: true,
                           touchTooltipData: BarTouchTooltipData(
@@ -212,8 +218,8 @@ class AnalyticsScreen extends ConsumerWidget {
                                 final labels = [
                                   'This Week',
                                   'Last Week',
-                                  '2 Weeks',
-                                  '3 Weeks'
+                                  '2W',
+                                  '3W'
                                 ];
                                 final idx = value.toInt();
                                 if (idx >= 0 && idx < labels.length) {
@@ -251,6 +257,131 @@ class AnalyticsScreen extends ConsumerWidget {
                       ),
                     ),
                   ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // ─── Monthly Trend ───
+            GlassCard(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Monthly Trend', style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: 160,
+                    child: monthlyTrend.isEmpty
+                        ? Center(child: Text('No data', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.outline)))
+                        : LineChart(
+                            LineChartData(
+                              gridData: FlGridData(show: false),
+                              borderData: FlBorderData(show: false),
+                              titlesData: FlTitlesData(
+                                bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, getTitlesWidget: (v, meta) {
+                                  final idx = v.toInt();
+                                  final now = selectedMonth;
+                                  final labelMonth = DateTime(now.year, now.month - 5 + idx, 1);
+                                  return Padding(
+                                    padding: const EdgeInsets.only(top: 8),
+                                    child: Text(DateFormat('MMM').format(labelMonth), style: Theme.of(context).textTheme.labelSmall?.copyWith(color: AppColors.outline)),
+                                  );
+                                }, reservedSize: 28)),
+                                leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, getTitlesWidget: (v, meta) {
+                                  if (v == 0) return const SizedBox.shrink();
+                                  return Text('${(v/1000).toStringAsFixed(0)}k', style: Theme.of(context).textTheme.labelSmall?.copyWith(color: AppColors.outline));
+                                }, reservedSize: 40)),
+                                topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                                rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                              ),
+                              lineBarsData: [
+                                LineChartBarData(
+                                  spots: List.generate(monthlyTrend.length, (i) => FlSpot(i.toDouble(), monthlyTrend[i])),
+                                  isCurved: true,
+                                  gradient: const LinearGradient(colors: [AppColors.primaryContainer, AppColors.primary]),
+                                  barWidth: 3,
+                                  dotData: FlDotData(show: true),
+                                ),
+                              ],
+                              minY: 0,
+                              maxY: (monthlyTrend.reduce((a, b) => a > b ? a : b) * 1.2).clamp(1000, double.infinity),
+                            ),
+                          ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // ─── Top merchants ───
+            GlassCard(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Top merchants', style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: 12),
+                  if (topMerchants.isEmpty)
+                    Center(child: Text('No spending this month', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.outline)))
+                  else
+                    Column(
+                      children: topMerchants.map((e) => ListTile(
+                        dense: true,
+                        visualDensity: const VisualDensity(vertical: -3),
+                        title: Text(e.key, style: Theme.of(context).textTheme.bodyMedium),
+                        trailing: Text('$currency${formatter.format(e.value)}', style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+                      )).toList(),
+                    ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // ─── Smart Insights ───
+            GlassCard(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Smart Insights', style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: 12),
+                  Builder(builder: (ctx) {
+                    final budget = ref.watch(monthlyBudgetProvider);
+                    final remain = budget - totalSpent;
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (budget > 0 && totalSpent > budget)
+                          Text("⚠️ You've exceeded your monthly budget by $currency${formatter.format((totalSpent - budget).abs())}", style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.redAccent)),
+                        if (budget > 0 && totalSpent <= budget)
+                          Text("✅ You're on track — $currency${formatter.format(remain)} remaining for the month", style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.greenAccent)),
+
+                        const SizedBox(height: 8),
+                        Text(
+                          biggestExpense == null ? 'No expenses this month' : 'Your biggest expense this month was ${biggestExpense.key} — $currency${formatter.format(biggestExpense.value)}',
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                        const SizedBox(height: 8),
+                        Text('You spent $currency${formatter.format(nonEssential)} on non-essentials this month', style: Theme.of(context).textTheme.bodyMedium),
+                        const SizedBox(height: 8),
+                        Builder(builder: (ctx2) {
+                          final essential = essentialSplit['essential'] ?? 0.0;
+                          final nonE = essentialSplit['nonEssential'] ?? 0.0;
+                          final total = essential + nonE;
+                          final essPct = total == 0 ? 0 : (essential / total * 100).round();
+                          final nonPct = total == 0 ? 0 : (nonE / total * 100).round();
+                          return Row(children: [
+                            Expanded(child: Text('Essential: $essPct%', style: Theme.of(context).textTheme.bodyMedium)),
+                            Expanded(child: Text('Non-essential: $nonPct%', style: Theme.of(context).textTheme.bodyMedium)),
+                          ]);
+                        }),
+                      ],
+                    );
+                  }),
                 ],
               ),
             ),

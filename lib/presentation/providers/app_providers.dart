@@ -326,6 +326,92 @@ final weeklySpendingProvider = Provider<Map<int, double>>((ref) {
   return repo.getWeeklySpending();
 });
 
+// Analytics providers for selected month
+final spendingByCategoryForMonthProvider = Provider.family<Map<int, double>, DateTime>((ref, month) {
+  ref.watch(allTransactionsProvider);
+  final repo = ref.watch(transactionRepositoryProvider);
+  final txns = repo.getTransactionsForMonth(month).where((t) => t.isDebit);
+  final map = <int, double>{};
+  for (final t in txns) {
+    map[t.categoryIndex] = (map[t.categoryIndex] ?? 0) + t.amount;
+  }
+  return map;
+});
+
+final weeklySpendingForMonthProvider = Provider.family<Map<int, double>, DateTime>((ref, month) {
+  ref.watch(allTransactionsProvider);
+  final repo = ref.watch(transactionRepositoryProvider);
+
+  final now = DateTime.now();
+  DateTime endDate;
+  if (month.year == now.year && month.month == now.month) {
+    endDate = now;
+  } else {
+    endDate = DateTime(month.year, month.month + 1, 1).subtract(const Duration(days: 1));
+  }
+
+  final map = <int, double>{};
+  for (var i = 0; i < 4; i++) {
+    final weekEnd = endDate.subtract(Duration(days: 7 * i));
+    final weekStart = weekEnd.subtract(const Duration(days: 6));
+    final sum = repo.getAllTransactions().where((t) => t.isDebit && !t.date.isBefore(weekStart) && !t.date.isAfter(weekEnd)).fold(0.0, (p, t) => p + t.amount);
+    map[i] = sum;
+  }
+  return map;
+});
+
+final monthlyTrendProvider = Provider.family<List<double>, DateTime>((ref, month) {
+  ref.watch(allTransactionsProvider);
+  final repo = ref.watch(transactionRepositoryProvider);
+  final list = <double>[];
+  for (var i = 5; i >= 0; i--) {
+    final m = DateTime(month.year, month.month - i, 1);
+    final sum = repo.getAllTransactions().where((t) => t.isDebit && t.date.year == m.year && t.date.month == m.month).fold(0.0, (p, t) => p + t.amount);
+    list.add(sum);
+  }
+  return list;
+});
+
+final topMerchantsProvider = Provider.family<List<MapEntry<String, double>>, DateTime>((ref, month) {
+  ref.watch(allTransactionsProvider);
+  final repo = ref.watch(transactionRepositoryProvider);
+  final txns = repo.getTransactionsForMonth(month).where((t) => t.isDebit);
+  final map = <String, double>{};
+  for (final t in txns) {
+    final m = (t.merchant ?? 'Unknown').trim();
+    map[m] = (map[m] ?? 0) + t.amount;
+  }
+  final list = map.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+  return list.take(5).toList();
+});
+
+final nonEssentialSpendingProvider = Provider.family<double, DateTime>((ref, month) {
+  ref.watch(allTransactionsProvider);
+  final repo = ref.watch(transactionRepositoryProvider);
+  final essentials = {TransactionCategory.shopping.index, TransactionCategory.food.index, TransactionCategory.entertainment.index};
+  final sum = repo.getTransactionsForMonth(month).where((t) => t.isDebit && essentials.contains(t.categoryIndex)).fold(0.0, (p, t) => p + t.amount);
+  return sum;
+});
+
+final biggestExpenseProvider = Provider.family<MapEntry<String, double>?, DateTime>((ref, month) {
+  ref.watch(allTransactionsProvider);
+  final repo = ref.watch(transactionRepositoryProvider);
+  final txns = repo.getTransactionsForMonth(month).where((t) => t.isDebit).toList();
+  if (txns.isEmpty) return null;
+  txns.sort((a, b) => b.amount.compareTo(a.amount));
+  final t = txns.first;
+  return MapEntry((t.merchant ?? 'Unknown').trim(), t.amount);
+});
+
+final essentialSplitProvider = Provider.family<Map<String, double>, DateTime>((ref, month) {
+  ref.watch(allTransactionsProvider);
+  final repo = ref.watch(transactionRepositoryProvider);
+  final essentialsIdx = {TransactionCategory.food.index, TransactionCategory.bills.index, TransactionCategory.health.index, TransactionCategory.travel.index};
+  final allTx = repo.getTransactionsForMonth(month).where((t) => t.isDebit);
+  final essential = allTx.where((t) => essentialsIdx.contains(t.categoryIndex)).fold(0.0, (p, t) => p + t.amount);
+  final nonEssential = allTx.fold(0.0, (p, t) => p + t.amount) - essential;
+  return {'essential': essential, 'nonEssential': nonEssential};
+});
 // ─── Navigation ───
 final selectedTabProvider = StateProvider<int>((ref) => 0);
 
