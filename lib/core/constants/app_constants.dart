@@ -18,6 +18,7 @@ class AppConstants {
   static const String currencySymbolKey = 'currencySymbol';
   static const String hasOnboardedKey = 'hasOnboarded';
   static const String startingBalanceKey = 'startingBalance';
+  static const String balanceStartDateKey = 'balanceStartDate';
   static const String lastSmsSyncKey = 'lastSmsSync';
 
   // Security keys

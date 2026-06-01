@@ -563,8 +563,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                                         return;
                                       }
                                       await ref.read(pinAuthProvider).setPin(p1);
+                                      if (!context.mounted) return;
                                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('PIN saved')));
-                                      if (mounted) await _goNext();
+                                      await _goNext();
                                     },
                                   ),
                                 ],

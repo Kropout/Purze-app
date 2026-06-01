@@ -126,15 +126,33 @@ class HomeScreen extends ConsumerWidget {
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const SizedBox(height: 8),
-                  Text(
-                    '$currency${formatter.format(estimated)}',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
+                  Builder(
+                    builder: (context) {
+                      const cap = 10000000; // ₹1 crore
+                      final tooHigh = estimated.abs() > cap;
+                      if (tooHigh) {
+                        return Text(
+                          'Balance seems incorrect',
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                color: Theme.of(context).colorScheme.error,
+                              ),
+                        );
+                      }
+
+                      return Text(
+                        '$currency${formatter.format(estimated)}',
+                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
+                      );
+                    },
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Based on UPI transactions only',
+                    (estimated.abs() > 10000000)
+                        ? 'We detected an unusually large balance. Please re-import SMS after updating filters.'
+                        : 'Based on UPI transactions only',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: Theme.of(context).colorScheme.outline,
                         ),

@@ -63,23 +63,53 @@ class _LockScreenState extends ConsumerState<LockScreen> {
 
     if (defaultTargetPlatform == TargetPlatform.android && pinAuth.isBiometricEnabled()) {
       try {
-        final canCheck = await _auth.canCheckBiometrics || await _auth.isDeviceSupported();
-        if (canCheck) {
-          final enrolled = (await _auth.getAvailableBiometrics()).isNotEmpty;
-          if (!enrolled) {
-            if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Biometric not available, please use PIN')));
-          } else {
-            final didAuth = await _auth.authenticate(
-              localizedReason: 'Authenticate to unlock Purze',
-              options: const AuthenticationOptions(biometricOnly: true),
+        // Check if device supports biometrics
+        final isDeviceSupported = await _auth.isDeviceSupported();
+        final canCheck = await _auth.canCheckBiometrics;
+
+        if (!isDeviceSupported && !canCheck) {
+          return;
+        }
+
+        // Get available biometrics - if empty, show enrollment message
+        final availableBiometrics = await _auth.getAvailableBiometrics();
+        if (availableBiometrics.isEmpty) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Please enroll a fingerprint in phone settings')),
             );
-            if (didAuth) {
-              if (mounted) Navigator.of(context).pop();
-              return;
-            }
+          }
+          return;
+        }
+
+        // Biometric is enrolled, attempt authentication immediately
+        try {
+          final didAuth = await _auth.authenticate(
+            localizedReason: 'Unlock Purze',
+            options: const AuthenticationOptions(
+              biometricOnly: false,
+              stickyAuth: true,
+              useErrorDialogs: false,
+            ),
+          );
+
+          if (didAuth && mounted) {
+            Navigator.of(context).pop();
+          }
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Biometric not available, please use PIN')),
+            );
           }
         }
-      } catch (_) {}
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Biometric not available, please use PIN')),
+          );
+        }
+      }
     }
   }
 

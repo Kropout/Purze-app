@@ -8,6 +8,7 @@ enum TransactionCategory {
   bills('Bills', Icons.receipt_long_rounded, AppColors.billsColor),
   entertainment('Entertainment', Icons.movie_rounded, AppColors.entertainmentColor),
   health('Health', Icons.favorite_rounded, AppColors.healthColor),
+  transfer('Transfer', Icons.swap_horiz_rounded, AppColors.otherColor),
   other('Other', Icons.more_horiz_rounded, AppColors.otherColor);
 
   final String label;

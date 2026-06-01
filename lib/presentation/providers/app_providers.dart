@@ -378,7 +378,7 @@ final topMerchantsProvider = Provider.family<List<MapEntry<String, double>>, Dat
   final txns = repo.getTransactionsForMonth(month).where((t) => t.isDebit);
   final map = <String, double>{};
   for (final t in txns) {
-    final m = (t.merchant ?? 'Unknown').trim();
+    final m = t.merchant.trim();
     map[m] = (map[m] ?? 0) + t.amount;
   }
   final list = map.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
@@ -400,7 +400,7 @@ final biggestExpenseProvider = Provider.family<MapEntry<String, double>?, DateTi
   if (txns.isEmpty) return null;
   txns.sort((a, b) => b.amount.compareTo(a.amount));
   final t = txns.first;
-  return MapEntry((t.merchant ?? 'Unknown').trim(), t.amount);
+  return MapEntry(t.merchant.trim(), t.amount);
 });
 
 final essentialSplitProvider = Provider.family<Map<String, double>, DateTime>((ref, month) {
@@ -441,6 +441,8 @@ class StartingBalanceNotifier extends StateNotifier<double> {
     try {
       final box = Hive.box(AppConstants.settingsBox);
       await box.put(AppConstants.startingBalanceKey, sanitized);
+      // Record the start date when user sets starting balance
+      await box.put(AppConstants.balanceStartDateKey, DateTime.now().toIso8601String());
     } catch (_) {}
   }
 
@@ -449,17 +451,38 @@ class StartingBalanceNotifier extends StateNotifier<double> {
     try {
       final box = Hive.box(AppConstants.settingsBox);
       await box.delete(AppConstants.startingBalanceKey);
+      await box.delete(AppConstants.balanceStartDateKey);
     } catch (_) {}
   }
 }
 
+// ─── Balance Start Date ───
+final balanceStartDateProvider = Provider<DateTime?>((ref) {
+  try {
+    final box = Hive.box(AppConstants.settingsBox);
+    final dateStr = box.get(AppConstants.balanceStartDateKey) as String?;
+    if (dateStr != null) {
+      return DateTime.parse(dateStr);
+    }
+    return null;
+  } catch (_) {
+    return null;
+  }
+});
 
 // ─── Estimated Balance ───
 final estimatedBalanceProvider = Provider<double>((ref) {
   final starting = ref.watch(startingBalanceProvider);
+  final balanceStartDate = ref.watch(balanceStartDateProvider);
   final all = ref.watch(allTransactionsProvider);
-  final credits = all.where((t) => !t.isDebit).fold(0.0, (sum, t) => sum + t.amount);
-  final debits = all.where((t) => t.isDebit).fold(0.0, (sum, t) => sum + t.amount);
+
+  // Only include transactions from balance start date onwards
+  final relevantTxns = balanceStartDate == null
+      ? all
+      : all.where((t) => !t.date.isBefore(balanceStartDate)).toList();
+
+  final credits = relevantTxns.where((t) => !t.isDebit).fold(0.0, (sum, t) => sum + t.amount);
+  final debits = relevantTxns.where((t) => t.isDebit).fold(0.0, (sum, t) => sum + t.amount);
   return starting + credits - debits;
 });
 

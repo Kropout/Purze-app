@@ -607,11 +607,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                 final canCheck = await auth.canCheckBiometrics || await auth.isDeviceSupported();
                                 final enrolled = (await auth.getAvailableBiometrics()).isNotEmpty;
                                 if (!canCheck || !enrolled) {
-                                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Biometric not available, please use PIN')));
+                                  if (!context.mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Biometric not available, please use PIN')));
                                   return;
                                 }
                               } catch (_) {
-                                if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Biometric not available, please use PIN')));
+                                if (!context.mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Biometric not available, please use PIN')));
                                 return;
                               }
                             }
@@ -628,11 +630,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                   final canCheck = await auth.canCheckBiometrics || await auth.isDeviceSupported();
                                   final enrolled = (await auth.getAvailableBiometrics()).isNotEmpty;
                                   if (!canCheck || !enrolled) {
-                                    if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Biometric not available, please use PIN')));
+                                    if (!context.mounted) return;
+                                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Biometric not available, please use PIN')));
                                     return;
                                   }
                                 } catch (_) {
-                                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Biometric not available, please use PIN')));
+                                  if (!context.mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Biometric not available, please use PIN')));
                                   return;
                                 }
                               }
@@ -667,6 +671,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
                       if (current == null) return;
                       final ok = await ref.read(pinAuthProvider).verifyPin(current);
+                      if (!context.mounted) return;
                       if (!ok) {
                         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Incorrect current PIN')));
                         return;
@@ -684,6 +689,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         },
                       );
                       if (newPin1 == null || newPin1.length != 4) return;
+                      if (!context.mounted) return;
 
                       final newPin2 = await showDialog<String?>(
                         context: context,
@@ -698,11 +704,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       );
 
                       if (newPin2 == null || newPin1 != newPin2) {
+                        if (!context.mounted) return;
                         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('PINs do not match')));
                         return;
                       }
 
                       await ref.read(pinAuthProvider).setPin(newPin1);
+                      if (!context.mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('PIN updated')));
                     },
                     trailing: Icon(Icons.chevron_right_rounded, color: theme.colorScheme.outline),
