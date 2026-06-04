@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 import '../../domain/entities/category.dart';
 import '../models/transaction_model.dart';
 import '../repositories/transaction_repository.dart';
+import 'mock_sms_provider.dart';
 
 String? _getRejectionReason(String text) {
   if (text.isEmpty) return 'Empty SMS body';
@@ -829,7 +830,7 @@ class SmsImporter {
 
   SmsImporter();
 
-  /// Import entire inbox (Android only). Returns number imported.
+  /// Import entire inbox (Android only, web uses mock data). Returns number imported.
   Future<int> importEntireInbox(TransactionRepository repo, {int? sinceMillis}) async {
     try {
       final args = <String, dynamic>{};
@@ -860,7 +861,16 @@ class SmsImporter {
 
       return added;
     } on PlatformException catch (_) {
-      return 0;
+      final mockTxs = await MockSmsProvider.getMockTransactions();
+      final existing = repo.getAllTransactions();
+      int added = 0; 
+      for (final tx in mockTxs) {
+        final dup = existing.any((e) => e.rawSmsText == tx.rawSmsText && e.date.millisecondsSinceEpoch == tx.date.millisecondsSinceEpoch);
+        if (dup) continue;
+        await repo.addTransaction(tx);
+        added++;
+      }
+      return added;
     }
   }
 }
