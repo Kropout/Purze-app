@@ -65,9 +65,9 @@ void main() {
     ),
     // 5. Axis Bank UPI (Long name preservation)
     const SmsTestCase(
-      body: 'Sent Rs 400 to Daivik Kumar Rao from A/c XX8901. Ref: 612345678901.',
+      body: 'Sent Rs 400 to Arvind Kumar Das from A/c XX8901. Ref: 612345678901.',
       expectedAmount: 400.0,
-      expectedMerchant: 'Daivik Kumar Rao',
+      expectedMerchant: 'Arvind Kumar Das',
       expectedIsDebit: true,
       shouldParse: true,
     ),
@@ -121,9 +121,9 @@ void main() {
     ),
     // 12. GPay UPI
     const SmsTestCase(
-      body: 'You paid ₹250 to Ramesh Kumar using HDFC Bank A/c ending 1234. UPI Ref 612345678901.',
+      body: 'You paid ₹250 to Dinesh Gupta using HDFC Bank A/c ending 1234. UPI Ref 612345678901.',
       expectedAmount: 250.0,
-      expectedMerchant: 'Ramesh Kumar',
+      expectedMerchant: 'Dinesh Gupta',
       expectedIsDebit: true,
       shouldParse: true,
     ),
@@ -257,17 +257,17 @@ void main() {
     ),
     // 29. UPI Credit (from Bank)
     const SmsTestCase(
-      body: 'Your A/c XX1234 has been credited with Rs 5,000.00 on 01-06-26 from Suresh Patel via UPI Ref: 612345678901.',
+      body: 'Your A/c XX1234 has been credited with Rs 5,000.00 on 01-06-26 from Ganesh Verma via UPI Ref: 612345678901.',
       expectedAmount: 5000.0,
-      expectedMerchant: 'Suresh Patel',
+      expectedMerchant: 'Ganesh Verma',
       expectedIsDebit: false,
       shouldParse: true,
     ),
     // 30. HDFC Credit (from Bank)
     const SmsTestCase(
-      body: 'Dear Customer, A/c **3456 has been credited with ₹12,500.00 on 01-06-26 by Suresh Patel. UPI Ref: 612345678901.',
+      body: 'Dear Customer, A/c **3456 has been credited with ₹12,500.00 on 01-06-26 by Ganesh Verma. UPI Ref: 612345678901.',
       expectedAmount: 12500.0,
-      expectedMerchant: 'Suresh Patel',
+      expectedMerchant: 'Ganesh Verma',
       expectedIsDebit: false,
       shouldParse: true,
     ),
@@ -289,9 +289,9 @@ void main() {
     ),
     // 33. Axis Credit (from Bank)
     const SmsTestCase(
-      body: 'Received Rs 1,500 from Amit Sharma in A/c XX8901. Ref: 612345678901.',
+      body: 'Received Rs 1,500 from Anil Thakur in A/c XX8901. Ref: 612345678901.',
       expectedAmount: 1500.0,
-      expectedMerchant: 'Amit Sharma',
+      expectedMerchant: 'Anil Thakur',
       expectedIsDebit: false,
       shouldParse: true,
     ),
@@ -384,9 +384,9 @@ void main() {
       shouldParse: true,
     ),
     const SmsTestCase(
-      body: 'INR 80.00 debited from A/c XX1234 to Daivik Kumar Rao on 01-06-26. Ref: 612345678901.',
+      body: 'INR 80.00 debited from A/c XX1234 to Arvind Kumar Das on 01-06-26. Ref: 612345678901.',
       expectedAmount: 80.0,
-      expectedMerchant: 'Daivik Kumar Rao',
+      expectedMerchant: 'Arvind Kumar Das',
       expectedIsDebit: true,
       shouldParse: true,
     ),
@@ -427,9 +427,72 @@ void main() {
       body: 'Hey, are we still meeting for lunch today at 1 PM?',
       shouldParse: false,
     ),
+    // 52. ICICI Format 1 — P2P debit
+    const SmsTestCase(
+      body: 'ICICI Bank Acct XX946 debited for Rs 84.00 on 28-May-26; MR RAKESH SHARMA credited. UPI:651446008723',
+      expectedAmount: 84.0,
+      expectedMerchant: 'Rakesh Sharma',
+      expectedIsDebit: true,
+      shouldParse: true,
+    ),
+    // 53. ICICI Format 2 — Merchant debit
+    const SmsTestCase(
+      body: 'Rs. 178.66 debited from ICICI Bank Acc XX946 on 31-May-26 VIN*Raz INOX . Bal Rs. 406.96',
+      expectedAmount: 178.66,
+      expectedMerchant: 'Raz Inox',
+      expectedIsDebit: true,
+      shouldParse: true,
+    ),
+    // 54. ICICI Format 3 — Credit
+    const SmsTestCase(
+      body: 'Dear Customer, Acct XX946 is credited with Rs 175.00 on 29-May-26 from ROHIT MANDAL. UPI:651576400335-ICICI Bank',
+      expectedAmount: 175.0,
+      expectedMerchant: 'Rohit Mandal',
+      expectedIsDebit: false,
+      shouldParse: true,
+    ),
+    // 55. Generic P2P from unknown bank with paid to NAME pattern
+    const SmsTestCase(
+      body: 'Paid Rs. 150 to Vikram Kumar Singh from unknown bank.',
+      expectedAmount: 150.0,
+      expectedMerchant: 'Vikram Kumar Singh',
+      expectedIsDebit: true,
+      shouldParse: true,
+    ),
+    // 56. Reference number rejection
+    const SmsTestCase(
+      body: 'Amt Rs 850.00 debited from A/c XX5678 to 615179062849. UPI Ref: 615179062849',
+      expectedAmount: 850.0,
+      expectedMerchant: 'Unknown',
+      expectedIsDebit: true,
+      shouldParse: true,
+    ),
+    // 57. Promotional SMS rejection
+    const SmsTestCase(
+      body: 'Congratulations! You won a cashback coupon of Rs 500. Click here to claim.',
+      shouldParse: false,
+    ),
+    // 58. OTP SMS rejection
+    const SmsTestCase(
+      body: 'Your secret passcode is 987654. Valid for 10 mins.',
+      shouldParse: false,
+    ),
+    // 59. Failed transaction rejection
+    const SmsTestCase(
+      body: 'Transaction of Rs. 1,000 on your A/c was reversed and cancelled.',
+      shouldParse: false,
+    ),
+    // 60. ICICI P2P — Full name "Vikram Kumar Singh" must NOT truncate
+    const SmsTestCase(
+      body: 'ICICI Bank Acct XX946 debited for Rs 84.00 on 28-May-26; VIKRAM KUMAR SINGH credited. UPI:651446008723',
+      expectedAmount: 84.0,
+      expectedMerchant: 'Vikram Kumar Singh',
+      expectedIsDebit: true,
+      shouldParse: true,
+    ),
   ];
 
-  test('Run SMS Parser on 51 Real-world Indian SMS Samples', () {
+  test('Run SMS Parser on 59 Real-world Indian SMS Samples', () {
     int passed = 0;
     int failed = 0;
 

@@ -8,58 +8,62 @@ import '../repositories/transaction_repository.dart';
 String? _getRejectionReason(String text) {
   if (text.isEmpty) return 'Empty SMS body';
   
-  // 1. OTP check
+  // 1. OTP/verification check
   final otpRe = RegExp(
-    r'\b(OTP|one\s*time\s*password|verification\s*code|passcode|secret\s*code|valid\s*for)\b',
+    r'\b(OTP|one\.time\.password|verification\s+code|login\s+code|signup\s+code)\b',
     caseSensitive: false,
   );
   if (otpRe.hasMatch(text)) {
     return 'Contains OTP/verification keyword';
   }
 
-  // 2. Promotional/marketing check
+  // 2. Promotional check
   final promoRe = RegExp(
-    r'\b(offer|discount|save\b|coupon|promo|sale|deal|win\b|free\b|pre-approved|apply\s*now|recharge\s*now|explore\s*now|cashback\s*of\s*(?:Rs|INR|₹)?\s*\d+\s*on\s*minimum)\b',
+    r'\b(offer|discount|cashback|win|free|click\s+here|download|install|refer|invite|expires|hurry|limited)\b',
     caseSensitive: false,
   );
-  // Do not reject if it explicitly states "credited" or "refunded" or "cashback credited"
-  if (promoRe.hasMatch(text) && !RegExp(r'\b(credited|refunded|received)\b', caseSensitive: false).hasMatch(text)) {
+  // Do not reject if it explicitly contains a transaction action verb
+  final actionVerbRe = RegExp(
+    r'\b(debited|credited|paid|received|transferred|sent|spent|withdrawn|refunded|charged|purchase)\b',
+    caseSensitive: false,
+  );
+  if (promoRe.hasMatch(text) && !actionVerbRe.hasMatch(text)) {
     return 'Promotional/marketing message';
   }
 
   // 3. Failed/declined check
   final failedRe = RegExp(
-    r'\b(failed|declined|insufficient\s*funds|rejected|undelivered|limit\s*exceeded|cancelled)\b',
+    r'\b(failed|declined|unsuccessful|insufficient|rejected|reversed|cancelled)\b',
     caseSensitive: false,
   );
   if (failedRe.hasMatch(text)) {
     return 'Failed/declined/insufficient-funds transaction';
   }
 
-  // 4. Reminder check
+  // 4. Pure reminders check
   final reminderRe = RegExp(
-    r'\b(reminder|due\s*date|overdue|statement\s*of|bill\s*due)\b',
+    r'\b(due|overdue|payment\s+due|bill\s+due|minimum\s+due|outstanding)\b',
     caseSensitive: false,
   );
-  final txnKeywordRe = RegExp(
-    r'\b(debited|credited|transferred|sent|received|paid|spent|withdrawn|deposit|refunded|charged|purchase|auto-debit|payment|txn|transaction|processed|sip)\b',
-    caseSensitive: false,
-  );
-  if (reminderRe.hasMatch(text) && !txnKeywordRe.hasMatch(text)) {
+  if (reminderRe.hasMatch(text) && !actionVerbRe.hasMatch(text)) {
     return 'Reminder/Bill due notice';
   }
 
-  // 5. Amount check
+  // 5. Amount check (reject if no Rs / INR / ₹ found followed by number)
   final amountRe = RegExp(
-    r'(?:INR|Rs\.?|₹|inr|rs)\s*([0-9,]+(?:\.[0-9]{1,2})?)',
+    r'(?:Rs\.?|INR|₹)\s*[\d,]+',
     caseSensitive: false,
   );
   if (!amountRe.hasMatch(text)) {
     return 'No transaction amount detected';
   }
 
-  // 6. Transaction action check
-  if (!txnKeywordRe.hasMatch(text)) {
+  // 6. Action check
+  final actionWordRe = RegExp(
+    r'\b(debited|credited|debit|credit|paid|received|transferred|sent|spent|withdrawn|txn|transaction|purchase|charged|processed|sip|auto-debit|payment|transfer)\b',
+    caseSensitive: false,
+  );
+  if (!actionWordRe.hasMatch(text)) {
     return 'No transaction action keywords found';
   }
 
@@ -68,55 +72,61 @@ String? _getRejectionReason(String text) {
 
 double _extractAmount(String text) {
   final amountRe = RegExp(
-    r'(?:INR|Rs\.?|₹|inr|rs)\s*([0-9,]+(?:\.[0-9]{1,2})?)',
+    r'(?:Rs\.?|INR|₹)\s*([0-9,]+(?:\.[0-9]{1,2})?)',
     caseSensitive: false,
   );
   
   final matches = amountRe.allMatches(text).toList();
   if (matches.isEmpty) return 0.0;
   
-  // If there's only one amount, make sure it's valid
-  if (matches.length == 1) {
-    final raw = matches.first.group(1)!.replaceAll(',', '');
-    return double.tryParse(raw) ?? 0.0;
-  }
+  final actionWordRe = RegExp(
+    r'\b(debited|credited|debit|credit|paid|received|transferred|sent|spent|withdrawn|txn|transaction|purchase|charged|processed|sip|auto-debit|payment|transfer)\b',
+    caseSensitive: false,
+  );
   
-  // If there are multiple amounts, identify which is the transaction amount
-  // and which are balances/limits
   double? candidateAmount;
-  double highestConfidence = -1.0;
+  double minDistance = 999999.0;
   
   for (final m in matches) {
     final raw = m.group(1)!.replaceAll(',', '');
     final val = double.tryParse(raw) ?? 0.0;
     if (val <= 0.0) continue;
     
-    // Check surrounding context (30 characters before and after)
-    final start = (m.start - 30).clamp(0, text.length);
-    final end = (m.end + 30).clamp(0, text.length);
-    final context = text.substring(start, end).toLowerCase();
+    // Ignore amounts preceded by Bal, Balance, Available, Limit, Outstanding, minimum, Total, due within 40 chars
+    final start = (m.start - 40).clamp(0, text.length);
+    final prefix = text.substring(start, m.start).toLowerCase();
     
-    // Balance / limit detection
-    if (RegExp(r'\b(bal|balance|available|avl|limit|outstanding|due|minimum|min\s*due)\b').hasMatch(context)) {
+    final ignoreRe = RegExp(
+      r'\b(bal|balance|available|avl|limit|outstanding|minimum|min|total|due)\b',
+      caseSensitive: false,
+    );
+    if (ignoreRe.hasMatch(prefix)) {
       continue; // Skip balance/limit amount
     }
     
-    // Check transaction keyword association
-    double confidence = 1.0;
-    if (RegExp(r'\b(debited|credited|spent|paid|sent|received|transferred|withdrawn|purchase|txn|payment|sip|auto-debit)\b').hasMatch(context)) {
-      confidence += 2.0;
+    // Find the closest action word
+    double dist = 999999.0;
+    final actionMatches = actionWordRe.allMatches(text);
+    for (final act in actionMatches) {
+      final d = (act.start - m.start).abs().toDouble();
+      if (d < dist) {
+        dist = d;
+      }
     }
     
-    if (confidence > highestConfidence) {
-      highestConfidence = confidence;
+    if (dist < minDistance) {
+      minDistance = dist;
       candidateAmount = val;
     }
   }
   
-  // Fallback: if all were skipped as balances or no confident amount found, pick the first one
+  // Fallback to first valid match if all candidate checks failed or no action word was found
   if (candidateAmount == null && matches.isNotEmpty) {
-    final raw = matches.first.group(1)!.replaceAll(',', '');
-    return double.tryParse(raw) ?? 0.0;
+    for (final m in matches) {
+      final raw = m.group(1)!.replaceAll(',', '');
+      final val = double.tryParse(raw) ?? 0.0;
+      if (val > 0.0) return val;
+    }
   }
   
   return candidateAmount ?? 0.0;
@@ -125,21 +135,31 @@ double _extractAmount(String text) {
 bool _isDebit(String text) {
   final lowerText = text.toLowerCase();
   
-  // Check if there are credit-specific keywords
-  final hasCredit = RegExp(r'\b(credited|received|deposited|refunded|cashback|added\s+to\s+wallet)\b').hasMatch(lowerText);
-  final hasDebit = RegExp(r'\b(debited|spent|paid|sent|withdrawn|transferred|purchase|auto-debit|charged)\b').hasMatch(lowerText);
+  final debitRe = RegExp(
+    r'\b(debited|debit|paid|sent|transferred\s+to|spent|withdrawn|purchase|payment|charged|auto-debit)\b',
+    caseSensitive: false,
+  );
+  final creditRe = RegExp(
+    r'\b(credited|credit(?!\s+card)|received|transferred\s+from)\b',
+    caseSensitive: false,
+  );
   
-  if (hasCredit && !hasDebit) return false;
+  final hasDebit = debitRe.hasMatch(lowerText);
+  final hasCredit = creditRe.hasMatch(lowerText);
+  
   if (hasDebit && !hasCredit) return true;
+  if (hasCredit && !hasDebit) return false;
   
-  // If both are present, compare their first positions in the text
-  if (hasCredit && hasDebit) {
-    final debitIdx = lowerText.indexOf(RegExp(r'\b(debited|spent|paid|sent|withdrawn|transferred|purchase|auto-debit|charged)\b'));
-    final creditIdx = lowerText.indexOf(RegExp(r'\b(credited|received|deposited|refunded|cashback)\b'));
-    if (creditIdx != -1 && debitIdx != -1) {
+  if (hasDebit && hasCredit) {
+    final debitIdx = debitRe.firstMatch(lowerText)?.start ?? -1;
+    final creditIdx = creditRe.firstMatch(lowerText)?.start ?? -1;
+    if (debitIdx != -1 && creditIdx != -1) {
       return debitIdx < creditIdx;
     }
   }
+  
+  // If no clear debit/credit word, check if it looks like a credit/income format
+  if (lowerText.contains('from ')) return false;
   
   return true; // Default to debit
 }
@@ -152,87 +172,325 @@ String _toTitleCase(String input) {
   }).join(' ');
 }
 
-String _cleanCandidateMerchant(String rawCandidate, double txnAmount) {
+String _cleanCandidateMerchant(String rawCandidate) {
   var m = rawCandidate.replaceAll('\n', ' ').trim();
-  
-  // 1. Strip standard A/c, Account, Acc, Card ending prefixes first before slash processing
-  m = m.replaceAll(RegExp(r'\b(?:a/c|acc|account|card|ending)\b.*$', caseSensitive: false), '').trim();
-  
-  // 2. Replace special characters like *, /, _ with spaces
-  m = m.replaceAll(RegExp(r'[*_/#]'), ' ').trim();
-  m = m.replaceAll(RegExp(r'\s+'), ' '); // normalize whitespace
-  
-  // If candidate contains a UPI VPA (with @), take the part before @
-  if (m.contains('@')) {
-    m = m.split('@').first.trim();
-  }
-  
+
+  // Strip boilerplate substrings
+  m = m.replaceAll(RegExp(r'\bCall\s*18002662\b', caseSensitive: false), '');
+  m = m.replaceAll(RegExp(r'\bSMS\s*BLOCK\b', caseSensitive: false), '');
+  m = m.replaceAll(RegExp(r'\bfor\s*dispute\b', caseSensitive: false), '');
+  m = m.replaceAll(RegExp(r'\bIf\s*not\s*you\b', caseSensitive: false), '');
+
+  // Strip title prefixes: MR, MRS, MS, DR, SRI, SMT
+  m = m.replaceAll(RegExp(r'^\b(?:MR|MRS|MS|DR|SRI|SMT)\b\.?\s+', caseSensitive: false), '');
+
+  // Strip bank name suffixes: - ICICI Bank, - HDFC Bank, etc.
+  m = m.replaceAll(RegExp(r'\s*[-–]\s*(?:ICICI|HDFC|SBI|AXIS|KOTAK|PNB)\s*Bank\.?$', caseSensitive: false), '');
+
+  // Replace *, _, #, / with space
+  m = m.replaceAll(RegExp(r'[*_#/]'), ' ');
+
+  // Normalize whitespace
+  m = m.replaceAll(RegExp(r'\s+'), ' ').trim();
+
   // Remove common banking boilerplate endings/tails.
-  // We want to stop at words that indicate transaction details.
   final stopWords = RegExp(
     r'\b(via|on|for|at|using|date|time|ref|ref\s*no|reference|txn|txnid|id|transaction|upi|imps|neft|rtgs|card|ending|a/c|account|xx\d+|\*\d+|success|successful|done|processed|completed|bal|balance|avl|limit|from|by|to|in|was|is|has|been)\b.*$',
     caseSensitive: false,
   );
   m = m.replaceAll(stopWords, '').trim();
-  
-  // Strip surrounding non-word characters except letters, digits, and spaces.
+
+  // Strip surrounding non-word characters (except spaces/letters/digits)
   m = m.replaceAll(RegExp(r'^[\W_]+|[\W_]+$'), '').trim();
-  
-  // Reject if it is just a number or an amount
-  final amountRe = RegExp(r'^(?:rs\.?|inr|₹|usd)?\s*[0-9,]+(?:\.[0-9]{1,2})?$', caseSensitive: false);
-  if (amountRe.hasMatch(m) || RegExp(r'^\d+$').hasMatch(m)) {
-    return '';
+
+  // Reject if result matches \d{8,} (reference number leaked) -> return "Unknown"
+  if (RegExp(r'\d{8,}').hasMatch(m)) {
+    return 'Unknown';
   }
-  
-  // Strip currency prefixes if they precede a valid name (e.g. "Rs Porter" -> "Porter")
-  m = m.replaceAll(RegExp(r'^(?:rs\.?|inr|₹)\s*', caseSensitive: false), '').trim();
-  
-  // Strip leading vps/upi/vpa bank boilerplate prefixes (e.g., "VPS Zomato" -> "Zomato", "UPI Star Biryani" -> "Star Biryani")
-  m = m.replaceAll(RegExp(r'^(?:vps|upi|vpa)\b\s*', caseSensitive: false), '').trim();
-  
-  final bankBoilerplate = RegExp(r'^(?:a/c|acc|account|card|ending|xxxx|bank|upi\s*ref|ref\s*no|txn|ref)$', caseSensitive: false);
-  if (bankBoilerplate.hasMatch(m)) {
-    return '';
-  }
-  
+
+  // Title case the result
   m = _toTitleCase(m);
-  
-  // Limit length safely, preserving full names
-  if (m.length > 80) {
-    m = m.substring(0, 80).trim();
+
+  // Max length 60 chars
+  if (m.length > 60) {
+    m = m.substring(0, 60).trim();
   }
-  
-  return m.length >= 2 ? m : '';
+
+  // Reject if result is empty or less than 2 chars -> return "Unknown"
+  if (m.length < 2) {
+    return 'Unknown';
+  }
+
+  return m;
 }
 
-String _extractMerchant(String text, double txnAmount, bool isDebit) {
+String? _tryPattern(String text, RegExp pattern, {int groupIndex = 1}) {
+  final match = pattern.firstMatch(text);
+  if (match != null && match.groupCount >= groupIndex) {
+    final raw = match.group(groupIndex);
+    if (raw != null) {
+      final cleaned = _cleanCandidateMerchant(raw);
+      if (cleaned != 'Unknown') {
+        return cleaned;
+      }
+    }
+  }
+  return null;
+}
+
+String? _properNounScan(String text) {
+  final bankNames = {
+    'icici', 'hdfc', 'sbi', 'axis', 'kotak', 'pnb', 'bob', 'canara', 'union', 'yes', 'idfc', 'federal', 'rbl', 'indusind'
+  };
+  final boilerplate = {
+    'call', 'sms', 'block', 'upi', 'bal', 'acct', 'bank', 'dear', 'customer', 'info',
+    'ref', 'reference', 'txn', 'txnid', 'id', 'no', 'credit', 'card', 'debit', 'avl', 'limit', 'rs', 'inr'
+  };
+  final daysOfWeek = {
+    'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday',
+    'mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'
+  };
+  final months = {
+    'january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december',
+    'jan', 'feb', 'mar', 'apr', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'
+  };
+
+  final wordRe = RegExp(r'\b[A-Za-z0-9]+\b');
+  final matches = wordRe.allMatches(text).toList();
+  
+  List<List<String>> sequences = [];
+  List<String> currentSeq = [];
+  int lastEnd = -1;
+
+  for (final m in matches) {
+    final word = m.group(0)!;
+    
+    // Check capitalization: starts with a letter and it's uppercase
+    final isCapitalized = word.isNotEmpty && 
+                          word[0] == word[0].toUpperCase() && 
+                          RegExp(r'^[A-Z]$').hasMatch(word[0]);
+    
+    final wordLower = word.toLowerCase();
+    
+    final isExcluded = bankNames.contains(wordLower) ||
+                       boilerplate.contains(wordLower) ||
+                       daysOfWeek.contains(wordLower) ||
+                       months.contains(wordLower);
+
+    if (isCapitalized && !isExcluded) {
+      if (currentSeq.isEmpty) {
+        currentSeq.add(word);
+      } else {
+        final gap = text.substring(lastEnd, m.start);
+        if (RegExp(r'^[,\s.]*$').hasMatch(gap)) {
+          currentSeq.add(word);
+        } else {
+          sequences.add(List.from(currentSeq));
+          currentSeq.clear();
+          currentSeq.add(word);
+        }
+      }
+      lastEnd = m.end;
+    } else {
+      if (currentSeq.isNotEmpty) {
+        sequences.add(List.from(currentSeq));
+        currentSeq.clear();
+      }
+    }
+  }
+  if (currentSeq.isNotEmpty) {
+    sequences.add(currentSeq);
+  }
+
+  final validSeqs = sequences.where((s) => s.length >= 2).toList();
+  if (validSeqs.isEmpty) return null;
+
+  validSeqs.sort((a, b) {
+    final cmp = b.length.compareTo(a.length);
+    if (cmp != 0) return cmp;
+    return b.join(' ').length.compareTo(a.join(' ').length);
+  });
+
+  return validSeqs.first.join(' ');
+}
+
+enum DetectedBank { icici, sbi, hdfc, pnb, none }
+
+DetectedBank _detectBank(String body, String sender) {
+  final bodyLower = body.toLowerCase();
+  final senderUpper = sender.toUpperCase();
+
+  if (bodyLower.contains('icici bank') || senderUpper == 'AX-ICICIT-S' || senderUpper == 'ICICIB') {
+    return DetectedBank.icici;
+  }
+  if (bodyLower.contains('sbi') || bodyLower.contains('state bank') || senderUpper.contains('SBI')) {
+    return DetectedBank.sbi;
+  }
+  if (bodyLower.contains('hdfc') || senderUpper.contains('HDFC')) {
+    return DetectedBank.hdfc;
+  }
+  if (bodyLower.contains('pnb') || bodyLower.contains('punjab national') || senderUpper.contains('PNB')) {
+    return DetectedBank.pnb;
+  }
+  return DetectedBank.none;
+}
+
+String _extractBankSpecificMerchant(DetectedBank bank, String text) {
+  switch (bank) {
+    case DetectedBank.icici:
+      // Format 1 — P2P Debit:
+      if (text.toLowerCase().contains('credited') && text.contains(';')) {
+        final match = RegExp(r';\s*(.+?)\s+credited', caseSensitive: false).firstMatch(text);
+        if (match != null) {
+          final cleaned = _cleanCandidateMerchant(match.group(1)!);
+          if (cleaned != 'Unknown') return cleaned;
+        }
+      }
+      // Format 2 — Merchant Debit:
+      if (text.contains('*') && text.toLowerCase().contains('. bal')) {
+        final match = RegExp(r'\*\s*(.+?)\s*\.\s*Bal', caseSensitive: false).firstMatch(text);
+        if (match != null) {
+          final cleaned = _cleanCandidateMerchant(match.group(1)!);
+          if (cleaned != 'Unknown') return cleaned;
+        }
+      }
+      // Format 3 — Credit:
+      if (text.toLowerCase().contains('credited') && text.toLowerCase().contains('from')) {
+        final match = RegExp(r'\bfrom\s+([^.]+)\.', caseSensitive: false).firstMatch(text);
+        if (match != null) {
+          final cleaned = _cleanCandidateMerchant(match.group(1)!);
+          if (cleaned != 'Unknown') return cleaned;
+        }
+      }
+      break;
+
+    case DetectedBank.sbi:
+      // SBI: Your A/c [ACCT] debited by Rs [AMOUNT]. Info: [MERCHANT]@[VPA]
+      if (text.toLowerCase().contains('info:')) {
+        final match = RegExp(r'\binfo:\s*([^@]+)@', caseSensitive: false).firstMatch(text);
+        if (match != null) {
+          final cleaned = _cleanCandidateMerchant(match.group(1)!);
+          if (cleaned != 'Unknown') return cleaned;
+        }
+      }
+      break;
+
+    case DetectedBank.hdfc:
+      // HDFC: Rs [AMOUNT] debited from HDFC Bank A/c XX[ACCT] to VPA [MERCHANT]@
+      if (text.toLowerCase().contains('to vpa')) {
+        final match = RegExp(r'\bto\s+vpa\s+([^@]+)@', caseSensitive: false).firstMatch(text);
+        if (match != null) {
+          final cleaned = _cleanCandidateMerchant(match.group(1)!);
+          if (cleaned != 'Unknown') return cleaned;
+        }
+      }
+      break;
+
+    case DetectedBank.pnb:
+      // PNB: Rs [AMOUNT] has been debited.*Payee: [MERCHANT]
+      if (text.toLowerCase().contains('payee:')) {
+        final match = RegExp(r'\bpayee:\s*(.+)$', caseSensitive: false).firstMatch(text);
+        if (match != null) {
+          final cleaned = _cleanCandidateMerchant(match.group(1)!);
+          if (cleaned != 'Unknown') return cleaned;
+        }
+      }
+      break;
+
+    case DetectedBank.none:
+      break;
+  }
+  return 'Unknown';
+}
+
+String _extractMerchant(String text, double txnAmount, bool isDebit, {String sender = ''}) {
+  String? processCandidate(String raw) {
+    if (RegExp(r'\d{8,}').hasMatch(raw)) {
+      return 'Unknown';
+    }
+    final cleaned = _cleanCandidateMerchant(raw);
+    if (cleaned == 'Unknown') return null;
+    return cleaned;
+  }
+
+  // Strategy 1 — Explicit payee markers:
+  final strat1 = RegExp(
+    r'\b(to|paid\s+to|transferred\s+to|payee[:\s]+)\s*([A-Za-z][A-Za-z\s\.]{2,50}?)(?=\s+(?:UPI\b|on\s+\d|Ref\b|A/c\b|Acct\b|using\b|via\b|for\b|from\b|at\b|to\b)|\s*\.|\s*$)',
+    caseSensitive: false,
+  );
+  final m1 = strat1.firstMatch(text)?.group(2);
+  if (m1 != null) {
+    final res = processCandidate(m1);
+    if (res != null) return res;
+  }
+
+  // Strategy 2 — Explicit sender markers:
+  final strat2 = RegExp(
+    r'\b(from|received\s+from|credited\s+by|by)\s+([A-Za-z][A-Za-z\s\.]{2,50}?)(?=\s+(?:UPI\b|on\s+\d|Ref\b|A/c\b|Acct\b|using\b|via\b|for\b|from\b|at\b|to\b)|\s*\.|\s*$)',
+    caseSensitive: false,
+  );
+  final m2 = strat2.firstMatch(text)?.group(2);
+  if (m2 != null) {
+    final res = processCandidate(m2);
+    if (res != null) return res;
+  }
+
+  // Strategy 3 — Semicolon pattern:
+  final strat3 = RegExp(
+    r';\s*([A-Za-z][A-Za-z\s\.]{2,50}?)\s+credited',
+    caseSensitive: false,
+  );
+  final m3 = strat3.firstMatch(text)?.group(1);
+  if (m3 != null) {
+    final res = processCandidate(m3);
+    if (res != null) return res;
+  }
+
+  // Strategy 4 — Star/slash merchant code pattern:
+  final strat4 = RegExp(
+    r'\b[A-Za-z]{2,5}\*([A-Za-z][A-Za-z\s]{2,40})',
+  );
+  final m4 = strat4.firstMatch(text)?.group(1);
+  if (m4 != null) {
+    final res = processCandidate(m4);
+    if (res != null) return res;
+  }
+
+  // Strategy 5 — "from NAME." pattern:
+  final strat5 = RegExp(
+    r'\bfrom\s+([A-Z][a-zA-Z\s\.]{2,50})\.\s*UPI',
+  );
+  final m5 = strat5.firstMatch(text)?.group(1);
+  if (m5 != null) {
+    final res = processCandidate(m5);
+    if (res != null) return res;
+  }
+
+  // Strategy 6 — Proper noun scan:
+  final m6 = _properNounScan(text);
+  if (m6 != null) {
+    final res = processCandidate(m6);
+    if (res != null) return res;
+  }
+
+  // Strategy 7 — Original patterns fallback for backwards compatibility
   final toPatterns = <RegExp>[
-    // "debited/paid/sent/transferred ... to <Merchant>"
     RegExp(r'\b(?:debited|paid|sent|transferred|payment|transfer|txn|purc|purchase)\b.*?\bto\s+([A-Za-z0-9 &.\''\-*/_@#]{2,100})', caseSensitive: false),
-    // "spent/done/purchase/txn ... at <Merchant>"
     RegExp(r'\b(?:spent\s+at|done\s+at|purchase\s+at|txn\s+at|spent|done|purchase|txn)\b.*?\bat\s+([A-Za-z0-9 &.\''\-*/_@#]{2,100})', caseSensitive: false),
-    // "at <Merchant>"
     RegExp(r'\bat\s+([A-Za-z0-9 &.\''\-*/_@#]{2,100})', caseSensitive: false),
-    // "to VPA <Merchant>@..." or "to <Merchant>@..."
     RegExp(r'\bto\s+vpa\s+([A-Za-z0-9 &.\''\-*/_@#]{2,100})@', caseSensitive: false),
     RegExp(r'\bto\s+([A-Za-z0-9 &.\''\-*/_@#]{2,100})@', caseSensitive: false),
   ];
 
   final fromPatterns = <RegExp>[
-    // "credited/received/refunded ... from/by <Merchant>"
     RegExp(r'\b(?:credited|received|refunded|deposit|refund)\b.*?\b(?:from|by)\s+([A-Za-z0-9 &.\''\-*/_@#]{2,100})', caseSensitive: false),
   ];
 
   final otherPatterns = <RegExp>[
-    // "in <Merchant>"
     RegExp(r'\bin\s+([A-Za-z0-9 &.\''\-*/_@#]{2,100})', caseSensitive: false),
-    // "for payment to <Merchant>"
     RegExp(r'\bfor\s+payment\s+to\s+([A-Za-z0-9 &.\''\-*/_@#]{2,100})', caseSensitive: false),
-    // "beneficiary/payee/recipient: <Merchant>"
     RegExp(r'\b(?:beneficiary|payee|recipient)\s*(?:name|is|:)?\s*([A-Za-z0-9 &.\''\-*/_@#]{2,100})', caseSensitive: false),
-    // "Info: <Merchant>"
     RegExp(r'\b(?:info|info:|narration|desc|remarks|remarks:)\s*([A-Za-z0-9 &.\''\-*/_@#]{2,100})', caseSensitive: false),
-    // "<Merchant> payment of"
     RegExp(r'\b([A-Za-z0-9 &.\''\-*/_@#]{2,100})\s+payment\s+of\b', caseSensitive: false),
   ];
 
@@ -251,20 +509,13 @@ String _extractMerchant(String text, double txnAmount, bool isDebit) {
     if (match != null) {
       final matchStr = match.group(1)?.trim();
       if (matchStr != null && matchStr.isNotEmpty) {
-        final cleaned = _cleanCandidateMerchant(matchStr, txnAmount);
-        if (cleaned.isNotEmpty) return cleaned;
+        final res = processCandidate(matchStr);
+        if (res != null) return res;
       }
     }
   }
-  
-  // Fallback 1: UPI ID or reference prefixes
-  final upiMatch = RegExp(r'\b(?:upi|vpa|info|ref):\s*([A-Za-z0-9 &.\''\-]{2,100})', caseSensitive: false).firstMatch(text);
-  if (upiMatch != null) {
-    final cleaned = _cleanCandidateMerchant(upiMatch.group(1)!, txnAmount);
-    if (cleaned.isNotEmpty) return cleaned;
-  }
-  
-  // Fallback 2: Known merchants scan
+
+  // Fallback 8: Known merchants scan
   final lowerText = text.toLowerCase();
   final knownMerchants = [
     'porter', 'swiggy', 'zomato', 'blinkit', 'zepto', 'instamart', 'bigbasket', 'dunzo',
@@ -275,7 +526,7 @@ String _extractMerchant(String text, double txnAmount, bool isDebit) {
     'airtel', 'jio', 'vi', 'bsnl', 'bescom', 'tata power', 'adani', 'indane', 'hp gas',
     'practo', 'pharmeasy', '1mg', 'apollo', 'medplus', 'netmeds',
     'groww', 'zerodha', 'upstox', 'paytm', 'phonepe', 'gpay', 'google pay',
-    'starbucks', 'mcdonald', 'kfc', 'burger king', 'pizza hut', 'domino'
+    'starbucks', 'mcdonald', 'kfc', 'burger king', 'pizza hut', 'domino', 'max', 'mubi' , 
   ];
   for (final merchant in knownMerchants) {
     final re = RegExp(r'\b' + RegExp.escape(merchant) + r'\b', caseSensitive: false);
@@ -283,8 +534,75 @@ String _extractMerchant(String text, double txnAmount, bool isDebit) {
       return _toTitleCase(merchant);
     }
   }
-  
+
+  // Fallback 9: Bank-Specific Fallback (if and only if generic returns "Unknown")
+  final bank = _detectBank(text, sender);
+  if (bank != DetectedBank.none) {
+    final bankMerchant = _extractBankSpecificMerchant(bank, text);
+    if (bankMerchant != 'Unknown') {
+      return bankMerchant;
+    }
+  }
+
   return isDebit ? 'UPI' : 'Transfer';
+}
+
+DateTime _extractDate(String text, DateTime fallback) {
+  // Pattern 1: DD-MMM-YY or DD-MMM-YYYY (e.g. 28-May-26 or 28-May-2026)
+  final pattern1 = RegExp(r'\b(\d{1,2})-([A-Za-z]{3})-(\d{2,4})\b');
+  final match1 = pattern1.firstMatch(text);
+  if (match1 != null) {
+    final day = int.tryParse(match1.group(1)!) ?? 1;
+    final monthStr = match1.group(2)!.toLowerCase();
+    final yearStr = match1.group(3)!;
+    
+    int month = 1;
+    final months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+    final idx = months.indexOf(monthStr.substring(0, 3));
+    if (idx != -1) {
+      month = idx + 1;
+    }
+    
+    int year = int.tryParse(yearStr) ?? fallback.year;
+    if (yearStr.length == 2) {
+      year += 2000;
+    }
+    return DateTime(year, month, day);
+  }
+
+  // Pattern 2: DD/MM/YYYY or DD/MM/YY (e.g. 01/06/2026)
+  final pattern2 = RegExp(r'\b(\d{1,2})/(\d{1,2})/(\d{2,4})\b');
+  final match2 = pattern2.firstMatch(text);
+  if (match2 != null) {
+    final day = int.tryParse(match2.group(1)!) ?? 1;
+    final month = int.tryParse(match2.group(2)!) ?? 1;
+    final yearStr = match2.group(3)!;
+    int year = int.tryParse(yearStr) ?? fallback.year;
+    if (yearStr.length == 2) {
+      year += 2000;
+    }
+    return DateTime(year, month, day);
+  }
+
+  // Pattern 3: DD MMM YYYY (e.g. 01 Jun 2026)
+  final pattern3 = RegExp(r'\b(\d{1,2})\s+([A-Za-z]{3})\s+(\d{4})\b');
+  final match3 = pattern3.firstMatch(text);
+  if (match3 != null) {
+    final day = int.tryParse(match3.group(1)!) ?? 1;
+    final monthStr = match3.group(2)!.toLowerCase();
+    final yearStr = match3.group(3)!;
+    
+    int month = 1;
+    final months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+    final idx = months.indexOf(monthStr.substring(0, 3));
+    if (idx != -1) {
+      month = idx + 1;
+    }
+    
+    final year = int.tryParse(yearStr) ?? fallback.year;
+    return DateTime(year, month, day);
+  }
+  return fallback;
 }
 
 bool _isP2PTransfer(String body) {
@@ -441,7 +759,7 @@ List<TransactionModel> _parseSmsBatch(List<Map<String, dynamic>> items) {
   for (final m in items) {
     final body = (m['body'] ?? '') as String;
     final dateMs = (m['date'] ?? 0) as int;
-    final date = DateTime.fromMillisecondsSinceEpoch(dateMs);
+    final sender = (m['address'] ?? m['sender'] ?? '') as String;
     
     final rejectionReason = _getRejectionReason(body);
     if (rejectionReason != null) {
@@ -466,7 +784,8 @@ Reason:       Extracted amount was 0 or invalid
     }
 
     final isDebit = _isDebit(body);
-    final merchant = _extractMerchant(body, amount, isDebit);
+    final merchant = _extractMerchant(body, amount, isDebit, sender: sender);
+    final date = _extractDate(body, DateTime.fromMillisecondsSinceEpoch(dateMs));
     final category = _categoryFor(merchant, body);
 
     final idVal = (m['id'] ?? uuid.v4()).toString();

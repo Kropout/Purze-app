@@ -32,6 +32,6 @@ class AppConstants {
   static const String lastActiveKey = 'lastActive';
 
   // Validation limits
-  static const int maxNameLength = 20;
+  static const int maxNameLength = 80;
   static const int maxMonthlyBudget = 1000000; // ₹10,00,000
 }
