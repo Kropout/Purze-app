@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -8,6 +9,7 @@ import 'core/theme/app_theme.dart';
 import 'data/models/transaction_model.dart';
 import 'data/models/budget_model.dart';
 import 'data/repositories/transaction_repository.dart';
+import 'data/services/mock_sms_provider.dart';
 import 'presentation/providers/app_providers.dart';
 import 'presentation/screens/app_entry.dart';
 
@@ -31,6 +33,13 @@ Future<void> main() async {
   // Initialize repository (opens Hive boxes)
   final repo = TransactionRepository();
   await repo.init();
+
+  if (kIsWeb) {
+    final mockTransactions = await MockSmsProvider.getMockTransactions();
+    for (final tx in mockTransactions) {
+      await repo.addTransaction(tx);
+    }
+  }
 
   runApp(
     ProviderScope(
@@ -59,3 +68,4 @@ class PurzeApp extends ConsumerWidget {
     );
   }
 }
+
