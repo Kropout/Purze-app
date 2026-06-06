@@ -9,6 +9,28 @@ import 'mock_sms_provider.dart';
 String? _getRejectionReason(String text) {
   if (text.isEmpty) return 'Empty SMS body';
   
+  // 0. Date filter: ignore messages older than 1 year
+  // Assuming extractDate can parse a date, if it fails, fallback to current time
+  final now = DateTime.now();
+  final smsDate = _extractDate(text, now);
+  if (smsDate.isBefore(now.subtract(const Duration(days: 365)))) {
+    return 'Message older than 1 year';
+  }
+
+  // 1. Rejection filter for service-based transactions
+  final serviceRe = RegExp(
+    r'\b(FASTag|toll|highway|Sodexo|voucher|meal\s+card|corporate\s+card|fleet|parking)\b',
+    caseSensitive: false,
+  );
+  // Do not reject if paid via UPI/Netbanking - detected by presence of those keywords
+  final paymentMethodRe = RegExp(
+    r'\b(UPI|NetBanking|IMPS|NEFT|AutoPay)\b',
+    caseSensitive: false,
+  );
+  if (serviceRe.hasMatch(text) && !paymentMethodRe.hasMatch(text)) {
+    return 'Service-based transaction (corporate/voucher)';
+  }
+
   // 1. OTP/verification check
   final otpRe = RegExp(
     r'\b(OTP|one\.time\.password|verification\s+code|login\s+code|signup\s+code)\b',
@@ -58,7 +80,7 @@ String? _getRejectionReason(String text) {
   if (!amountRe.hasMatch(text)) {
     return 'No transaction amount detected';
   }
-
+  
   // 6. Action check
   final actionWordRe = RegExp(
     r'\b(debited|credited|debit|credit|paid|received|transferred|sent|spent|withdrawn|txn|transaction|purchase|charged|processed|sip|auto-debit|payment|transfer)\b',
@@ -67,44 +89,43 @@ String? _getRejectionReason(String text) {
   if (!actionWordRe.hasMatch(text)) {
     return 'No transaction action keywords found';
   }
-
+  
   return null; // Valid financial SMS!
 }
 
 double _extractAmount(String text) {
   final amountRe = RegExp(
     r'(?:Rs\.?|INR|₹)\s*([0-9,]+(?:\.[0-9]{1,2})?)',
-    caseSensitive: false,
-  );
-  
+      caseSensitive: false,
+    );
+
   final matches = amountRe.allMatches(text).toList();
   if (matches.isEmpty) return 0.0;
-  
+
   final actionWordRe = RegExp(
     r'\b(debited|credited|debit|credit|paid|received|transferred|sent|spent|withdrawn|txn|transaction|purchase|charged|processed|sip|auto-debit|payment|transfer)\b',
     caseSensitive: false,
   );
-  
+
   double? candidateAmount;
   double minDistance = 999999.0;
-  
   for (final m in matches) {
     final raw = m.group(1)!.replaceAll(',', '');
     final val = double.tryParse(raw) ?? 0.0;
     if (val <= 0.0) continue;
-    
+
     // Ignore amounts preceded by Bal, Balance, Available, Limit, Outstanding, minimum, Total, due within 40 chars
     final start = (m.start - 40).clamp(0, text.length);
     final prefix = text.substring(start, m.start).toLowerCase();
-    
+
     final ignoreRe = RegExp(
       r'\b(bal|balance|available|avl|limit|outstanding|minimum|min|total|due)\b',
-      caseSensitive: false,
-    );
+    caseSensitive: false,
+  );
     if (ignoreRe.hasMatch(prefix)) {
       continue; // Skip balance/limit amount
-    }
-    
+  }
+
     // Find the closest action word
     double dist = 999999.0;
     final actionMatches = actionWordRe.allMatches(text);
@@ -114,13 +135,13 @@ double _extractAmount(String text) {
         dist = d;
       }
     }
-    
+
     if (dist < minDistance) {
       minDistance = dist;
       candidateAmount = val;
     }
   }
-  
+
   // Fallback to first valid match if all candidate checks failed or no action word was found
   if (candidateAmount == null && matches.isNotEmpty) {
     for (final m in matches) {
@@ -129,39 +150,39 @@ double _extractAmount(String text) {
       if (val > 0.0) return val;
     }
   }
-  
+
   return candidateAmount ?? 0.0;
 }
 
 bool _isDebit(String text) {
   final lowerText = text.toLowerCase();
-  
+
   final debitRe = RegExp(
     r'\b(debited|debit|paid|sent|transferred\s+to|spent|withdrawn|purchase|payment|charged|auto-debit)\b',
     caseSensitive: false,
-  );
+    );
   final creditRe = RegExp(
     r'\b(credited|credit(?!\s+card)|received|transferred\s+from)\b',
     caseSensitive: false,
   );
-  
+
   final hasDebit = debitRe.hasMatch(lowerText);
   final hasCredit = creditRe.hasMatch(lowerText);
-  
+
   if (hasDebit && !hasCredit) return true;
   if (hasCredit && !hasDebit) return false;
-  
+
   if (hasDebit && hasCredit) {
     final debitIdx = debitRe.firstMatch(lowerText)?.start ?? -1;
     final creditIdx = creditRe.firstMatch(lowerText)?.start ?? -1;
     if (debitIdx != -1 && creditIdx != -1) {
       return debitIdx < creditIdx;
-    }
   }
-  
+}
+
   // If no clear debit/credit word, check if it looks like a credit/income format
   if (lowerText.contains('from ')) return false;
-  
+
   return true; // Default to debit
 }
 
@@ -258,21 +279,21 @@ String? _properNounScan(String text) {
 
   final wordRe = RegExp(r'\b[A-Za-z0-9]+\b');
   final matches = wordRe.allMatches(text).toList();
-  
+
   List<List<String>> sequences = [];
   List<String> currentSeq = [];
   int lastEnd = -1;
 
   for (final m in matches) {
     final word = m.group(0)!;
-    
+
     // Check capitalization: starts with a letter and it's uppercase
-    final isCapitalized = word.isNotEmpty && 
-                          word[0] == word[0].toUpperCase() && 
+    final isCapitalized = word.isNotEmpty &&
+                          word[0] == word[0].toUpperCase() &&
                           RegExp(r'^[A-Z]$').hasMatch(word[0]);
-    
+
     final wordLower = word.toLowerCase();
-    
+
     final isExcluded = bankNames.contains(wordLower) ||
                        boilerplate.contains(wordLower) ||
                        daysOfWeek.contains(wordLower) ||
@@ -527,7 +548,7 @@ String _extractMerchant(String text, double txnAmount, bool isDebit, {String sen
     'airtel', 'jio', 'vi', 'bsnl', 'bescom', 'tata power', 'adani', 'indane', 'hp gas',
     'practo', 'pharmeasy', '1mg', 'apollo', 'medplus', 'netmeds',
     'groww', 'zerodha', 'upstox', 'paytm', 'phonepe', 'gpay', 'google pay',
-    'starbucks', 'mcdonald', 'kfc', 'burger king', 'pizza hut', 'domino', 'max', 'mubi' , 
+    'starbucks', 'mcdonald', 'kfc', 'burger king', 'pizza hut', 'domino', 'max', 'mubi' ,
   ];
   for (final merchant in knownMerchants) {
     final re = RegExp(r'\b' + RegExp.escape(merchant) + r'\b', caseSensitive: false);
@@ -556,14 +577,14 @@ DateTime _extractDate(String text, DateTime fallback) {
     final day = int.tryParse(match1.group(1)!) ?? 1;
     final monthStr = match1.group(2)!.toLowerCase();
     final yearStr = match1.group(3)!;
-    
+
     int month = 1;
     final months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
     final idx = months.indexOf(monthStr.substring(0, 3));
     if (idx != -1) {
       month = idx + 1;
     }
-    
+
     int year = int.tryParse(yearStr) ?? fallback.year;
     if (yearStr.length == 2) {
       year += 2000;
@@ -592,14 +613,14 @@ DateTime _extractDate(String text, DateTime fallback) {
     final day = int.tryParse(match3.group(1)!) ?? 1;
     final monthStr = match3.group(2)!.toLowerCase();
     final yearStr = match3.group(3)!;
-    
+
     int month = 1;
     final months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
     final idx = months.indexOf(monthStr.substring(0, 3));
     if (idx != -1) {
       month = idx + 1;
     }
-    
+
     final year = int.tryParse(yearStr) ?? fallback.year;
     return DateTime(year, month, day);
   }
@@ -610,13 +631,13 @@ bool _isP2PTransfer(String body) {
   final p2pPatterns = <RegExp>[
     RegExp(r"\b(?:paid|transferred|sent)\s+to\s+(?!the\b)([A-Za-z][A-Za-z0-9 &.'\-]{2,40})\b", caseSensitive: false),
   ];
-  
+
   for (final re in p2pPatterns) {
     if (re.hasMatch(body)) {
       return true;
     }
   }
-  
+
   return false;
 }
 
@@ -630,128 +651,54 @@ TransactionCategory _categoryFor(String merchant, String body) {
     return TransactionCategory.transfer;
   }
 
-  if (hasAny([
-    'swiggy',
-    'zomato',
-    'domino',
-    'mcdonald',
-    'kfc',
-    'burger king',
-    'pizza hut',
-    'starbucks',
-    'cafe coffee day',
-    'blinkit',
-    'zepto',
-    'instamart',
-  ])) {
+  // 1. Delivery Services
+  if (hasAny(['blinkit', 'zepto', 'instamart', 'bigbasket', 'dunzo'])) {
+    return TransactionCategory.delivery;
+  }
+
+  // 2. Food
+  if (hasAny(['swiggy', 'zomato', 'domino', 'mcdonald', 'kfc', 'burger king', 'pizza hut', 'starbucks', 'cafe coffee day'])) {
     return TransactionCategory.food;
   }
 
-  if (hasAny([
-    'zara',
-    'h&m',
-    'hm',
-    'myntra',
-    'amazon',
-    'flipkart',
-    'meesho',
-    'ajio',
-    'reliance trends',
-    'westside',
-    'lifestyle',
-    'nykaa',
-    'decathlon',
-  ])) {
+  // 3. Taxis
+  if (hasAny(['ola', 'uber', 'rapido', 'porter'])) {
+    return TransactionCategory.taxi;
+  }
+
+  // 4. Shopping
+  if (hasAny(['zara', 'h&m', 'hm', 'myntra', 'amazon', 'flipkart', 'meesho', 'ajio', 'reliance trends', 'westside', 'lifestyle', 'nykaa', 'decathlon'])) {
     return TransactionCategory.shopping;
   }
 
-  if (hasAny([
-    'pvr',
-    'inox',
-    'cinepolis',
-    'bookmyshow',
-    'netflix',
-    'spotify',
-    'youtube',
-    'hotstar',
-    'jiosaavn',
-  ])) {
-    return TransactionCategory.entertainment;
+  // 5. Finance
+  if (hasAny(['groww', 'zerodha', 'upstox', 'kuvera', 'coin'])) {
+    return TransactionCategory.finance;
   }
 
-  if (hasAny([
-    'ola',
-    'uber',
-    'rapido',
-    'redbus',
-    'irctc',
-    'makemytrip',
-    'goibibo',
-    'indigo',
-    'air india',
-    'yatra',
-    'porter',
-  ])) {
+  // 6. Travel
+  if (hasAny(['redbus', 'irctc', 'makemytrip', 'goibibo', 'indigo', 'air india', 'yatra'])) {
     return TransactionCategory.travel;
   }
 
-  if (hasAny([
-    'airtel',
-    'jio',
-    'bsnl',
-    'vi',
-    'bescom',
-    'tata power',
-    'adani',
-    'lpg',
-    'indane',
-    'hp gas',
-    'electricity',
-    'gas',
-    'broadband',
-    'dth',
-  ])) {
+  // 7. Bills
+  if (hasAny(['airtel', 'jio', 'vi', 'bsnl', 'bescom', 'tata power', 'adani', 'lpg', 'indane', 'hp gas', 'electricity', 'gas', 'broadband', 'dth'])) {
     return TransactionCategory.bills;
   }
 
-  if (hasAny([
-    'practo',
-    'pharmeasy',
-    '1mg',
-    'apollo',
-    'medplus',
-    'netmeds',
-  ])) {
+  // 8. Health
+  if (hasAny(['practo', 'pharmeasy', '1mg', 'apollo', 'medplus', 'netmeds'])) {
     return TransactionCategory.health;
   }
 
-  if (hasAny([
-    'groww',
-    'zerodha',
-    'upstox',
-    'kuvera',
-    'coin',
-    'phonepe',
-    'gpay',
-    'google pay',
-    'paytm',
-    'unacademy',
-    'byju',
-    'coursera',
-    'udemy',
-    'vedantu',
-  ])) {
-    return TransactionCategory.other;
+  // 9. Entertainment
+  if (hasAny(['pvr', 'inox', 'cinepolis', 'bookmyshow', 'netflix', 'spotify', 'youtube', 'hotstar', 'jiosaavn'])) {
+    return TransactionCategory.entertainment;
   }
 
-  if (b.contains('restaurant') || b.contains('food') || b.contains('cafe')) return TransactionCategory.food;
-  if (b.contains('movie') || b.contains('cinema') || b.contains('ott')) return TransactionCategory.entertainment;
-  if (b.contains('electricity') || b.contains('bill')) return TransactionCategory.bills;
-  if (b.contains('hospital') || b.contains('pharmacy')) return TransactionCategory.health;
-  if (b.contains('flight') || b.contains('cab') || b.contains('train')) return TransactionCategory.travel;
-
-  return TransactionCategory.other;
-}
+  // 10. Default Others
+    return TransactionCategory.other;
+  }
 
 List<TransactionModel> _parseSmsBatch(List<Map<String, dynamic>> items) {
   final List<TransactionModel> out = [];
@@ -761,7 +708,7 @@ List<TransactionModel> _parseSmsBatch(List<Map<String, dynamic>> items) {
     final body = (m['body'] ?? '') as String;
     final dateMs = (m['date'] ?? 0) as int;
     final sender = (m['address'] ?? m['sender'] ?? '') as String;
-    
+
     final rejectionReason = _getRejectionReason(body);
     if (rejectionReason != null) {
       debugPrint('''
@@ -874,3 +821,4 @@ class SmsImporter {
     }
   }
 }
+
