@@ -711,23 +711,25 @@ List<TransactionModel> _parseSmsBatch(List<Map<String, dynamic>> items) {
 
     final rejectionReason = _getRejectionReason(body);
     if (rejectionReason != null) {
-      debugPrint('''
-======================================================================
-[SMS PARSER LOG] - REJECTED
-Original SMS: "$body"
-Reason:       $rejectionReason
-======================================================================''');
+      if (kDebugMode) {
+        print('''
+[SMS Parser] REJECTED | ${DateTime.now()}
+  Snippet: "${body.length > 50 ? body.substring(0, 50) : body}..."
+  Reason: $rejectionReason
+''');
+      }
       continue;
     }
 
     final amount = _extractAmount(body);
     if (amount <= 0) {
-      debugPrint('''
-======================================================================
-[SMS PARSER LOG] - REJECTED
-Original SMS: "$body"
-Reason:       Extracted amount was 0 or invalid
-======================================================================''');
+      if (kDebugMode) {
+        print('''
+[SMS Parser] REJECTED | ${DateTime.now()}
+  Snippet: "${body.length > 50 ? body.substring(0, 50) : body}..."
+  Reason: Invalid/Zero Amount
+''');
+      }
       continue;
     }
 
@@ -739,18 +741,16 @@ Reason:       Extracted amount was 0 or invalid
     final idVal = (m['id'] ?? uuid.v4()).toString();
     final id = 'sms_${idVal}_$dateMs';
 
-    debugPrint('''
-======================================================================
-[SMS PARSER LOG] - PARSED SUCCESSFULLY
-Original SMS: "$body"
-Extracted Fields:
-  - Amount:      ₹$amount
-  - Merchant:    $merchant
-  - Type:        ${isDebit ? 'Debit (Expense)' : 'Credit (Income)'}
-  - Category:    ${category.name.toUpperCase()}
-  - Date:        $date
-======================================================================''');
-
+    if (kDebugMode) {
+      print('''
+[SMS Parser] PARSED | ${DateTime.now()}
+  Snippet:   "${body.length > 50 ? body.substring(0, 50) : body}..."
+  Merchant:  $merchant
+  Amount:    $amount
+  Category:  ${category.name.toUpperCase()}
+  Type:      ${isDebit ? 'Debit' : 'Credit'}
+''');
+    }
     out.add(
       TransactionModel(
         id: id,
