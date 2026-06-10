@@ -33,7 +33,7 @@ class MainShell extends ConsumerWidget {
       ),
       bottomNavigationBar: SafeArea(
         child: Container(
-          margin: const EdgeInsets.fromLTRB(20, 0, 20, 16), // Premium Floating Pill position
+          margin: const EdgeInsets.fromLTRB(0, 0, 0, 16), // Premium Floating Pill position edge-to-edge, 16px above bottom
           child: BubbleHover(
             borderRadius: 24,
             enableScale: false, // Capsule container does not scale, items inside scale instead

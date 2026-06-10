@@ -299,6 +299,48 @@ class BudgetListNotifier extends Notifier<List<BudgetModel>> {
   }
 }
 
+final categoryBudgetsProvider = StateNotifierProvider<CategoryBudgetsNotifier, Map<int, double>>((ref) {
+  return CategoryBudgetsNotifier();
+});
+
+class CategoryBudgetsNotifier extends StateNotifier<Map<int, double>> {
+  CategoryBudgetsNotifier() : super(_readInitial());
+
+  static Map<int, double> _readInitial() {
+    try {
+      final box = Hive.box<BudgetModel>(AppConstants.budgetBox);
+      final map = <int, double>{};
+      for (final budget in box.values) {
+        map[budget.categoryIndex] = budget.monthlyLimit;
+      }
+      return map;
+    } catch (_) {
+      return {};
+    }
+  }
+
+  Future<void> setState(int categoryIndex, double limit) async {
+    try {
+      final box = Hive.box<BudgetModel>(AppConstants.budgetBox);
+      final budget = box.get(categoryIndex);
+      if (budget != null) {
+        budget.monthlyLimit = limit;
+        await budget.save();
+      } else {
+        final newBudget = BudgetModel(
+          categoryIndex: categoryIndex,
+          monthlyLimit: limit,
+        );
+        await box.put(categoryIndex, newBudget);
+      }
+      state = {
+        ...state,
+        categoryIndex: limit,
+      };
+    } catch (_) {}
+  }
+}
+
 // ─── Analytics ───
 final totalSpentProvider = Provider<double>((ref) {
   // Recompute when transactions change.

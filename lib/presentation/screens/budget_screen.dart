@@ -12,12 +12,14 @@ class BudgetScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final budgets = ref.watch(allBudgetsProvider);
+    final categoryBudgets = ref.watch(categoryBudgetsProvider);
     final spending = ref.watch(spendingByCategoryProvider);
     final totalSpent = ref.watch(totalSpentProvider);
     final totalBudget = ref.watch(totalBudgetProvider);
     final currency = ref.watch(currencySymbolProvider);
     final formatter = NumberFormat('#,##,###', 'en_IN');
+
+    final sumOfCategoryBudgets = categoryBudgets.values.fold(0.0, (sum, val) => sum + val);
 
     return SafeArea(
       child: SingleChildScrollView(
@@ -64,6 +66,13 @@ class BudgetScreen extends ConsumerWidget {
                             '$currency${formatter.format(totalBudget)}',
                             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                                   fontWeight: FontWeight.w700,
+                                ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '(Sum of categories: $currency${formatter.format(sumOfCategoryBudgets)})',
+                            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                  color: AppColors.outline,
                                 ),
                           ),
                         ],
@@ -127,13 +136,21 @@ class BudgetScreen extends ConsumerWidget {
             const SizedBox(height: 16),
 
             // Category Budget Cards
-            for (final budget in budgets) ...[
+            for (final category in [
+              TransactionCategory.food,
+              TransactionCategory.travel,
+              TransactionCategory.shopping,
+              TransactionCategory.bills,
+              TransactionCategory.entertainment,
+              TransactionCategory.health,
+              TransactionCategory.other,
+            ]) ...[
               _buildCategoryBudgetCard(
                 context,
                 ref,
-                budget.categoryIndex,
-                budget.monthlyLimit,
-                spending[budget.categoryIndex] ?? 0,
+                category.index,
+                categoryBudgets[category.index] ?? 0.0,
+                spending[category.index] ?? 0.0,
                 formatter,
               ),
               const SizedBox(height: 12),
@@ -157,53 +174,54 @@ class BudgetScreen extends ConsumerWidget {
     final currency = ref.watch(currencySymbolProvider);
     final category = TransactionCategory.values[categoryIndex];
     final progress = limit > 0 ? spent / limit : 0.0;
-    final isOverBudget = spent > limit;
+    final isOverBudget = limit > 0 && spent > limit;
 
-    return GlassCard(
-      padding: const EdgeInsets.all(18),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: category.color.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(12),
+    return GestureDetector(
+      onTap: () => _showEditBudgetDialog(context, ref, categoryIndex, limit),
+      child: GlassCard(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: category.color.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    category.icon,
+                    color: category.color,
+                    size: 20,
+                  ),
                 ),
-                child: Icon(
-                  category.icon,
-                  color: category.color,
-                  size: 20,
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        category.label,
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        limit > 0
+                            ? '$currency${formatter.format(spent)} / $currency${formatter.format(limit)}'
+                            : '$currency${formatter.format(spent)} / Not set',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              color: AppColors.outline,
+                            ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      category.label,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '$currency${formatter.format(spent)} / $currency${formatter.format(limit)}',
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: AppColors.outline,
-                          ),
-                    ),
-                  ],
-                ),
-              ),
-              // Edit budget button
-              GestureDetector(
-                onTap: () => _showEditBudgetDialog(
-                    context, ref, categoryIndex, limit),
-                child: Container(
+                // Edit budget button
+                Container(
                   width: 36,
                   height: 36,
                   decoration: BoxDecoration(
@@ -216,31 +234,31 @@ class BudgetScreen extends ConsumerWidget {
                     color: AppColors.outline,
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          ShimmerProgressBar(
-            progress: progress,
-            color: category.color,
-          ),
-          if (isOverBudget) ...[
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                const Icon(Icons.warning_amber_rounded,
-                    size: 14, color: AppColors.debit),
-                const SizedBox(width: 4),
-                Text(
-                  'Over budget by $currency${formatter.format(spent - limit)}',
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: AppColors.debit,
-                      ),
-                ),
               ],
             ),
+            const SizedBox(height: 14),
+            ShimmerProgressBar(
+              progress: progress,
+              color: category.color,
+            ),
+            if (isOverBudget) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(Icons.warning_amber_rounded,
+                      size: 14, color: AppColors.debit),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Over budget by $currency${formatter.format(spent - limit)}',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: AppColors.debit,
+                        ),
+                  ),
+                ],
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
@@ -248,7 +266,7 @@ class BudgetScreen extends ConsumerWidget {
   void _showEditBudgetDialog(
       BuildContext context, WidgetRef ref, int categoryIndex, double currentLimit) {
     final currency = ref.read(currencySymbolProvider);
-    final controller = TextEditingController(text: currentLimit.toStringAsFixed(0));
+    final controller = TextEditingController(text: currentLimit > 0 ? currentLimit.toStringAsFixed(0) : '');
     final category = TransactionCategory.values[categoryIndex];
 
     showDialog(
@@ -275,6 +293,7 @@ class BudgetScreen extends ConsumerWidget {
               TextField(
                 controller: controller,
                 keyboardType: TextInputType.number,
+                autofocus: true,
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
@@ -301,9 +320,9 @@ class BudgetScreen extends ConsumerWidget {
             ),
             ElevatedButton(
               onPressed: () {
-                final newLimit = double.tryParse(controller.text);
-                if (newLimit != null && newLimit > 0) {
-                  ref.read(allBudgetsProvider.notifier).updateLimit(
+                final newLimit = double.tryParse(controller.text) ?? 0.0;
+                if (newLimit >= 0) {
+                  ref.read(categoryBudgetsProvider.notifier).setState(
                         categoryIndex,
                         newLimit,
                       );
