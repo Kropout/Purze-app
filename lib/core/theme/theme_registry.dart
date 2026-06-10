@@ -7,6 +7,7 @@ import 'app_theme.dart';
 
 /// Identifies a design-system theme backed by a DESIGN.md file.
 enum AppThemeId {
+  deepForest,
   luminousObsidian,
 }
 
@@ -14,10 +15,12 @@ enum AppThemeId {
 class ThemeRegistry {
   ThemeRegistry._();
 
-  static const AppThemeId defaultTheme = AppThemeId.luminousObsidian;
+  static const AppThemeId defaultTheme = AppThemeId.deepForest;
 
   static DesignSpec specFor(AppThemeId id) {
     switch (id) {
+      case AppThemeId.deepForest:
+        return LuminousObsidianTokens.spec; // Fallback spec, not used for styling widgets
       case AppThemeId.luminousObsidian:
         return LuminousObsidianTokens.spec;
     }
@@ -28,6 +31,10 @@ class ThemeRegistry {
     required Brightness brightness,
   }) {
     switch (id) {
+      case AppThemeId.deepForest:
+        return brightness == Brightness.dark
+            ? AppTheme.darkTheme
+            : AppTheme.lightTheme;
       case AppThemeId.luminousObsidian:
         return brightness == Brightness.dark
             ? LuminousObsidianTheme.dark
@@ -37,6 +44,8 @@ class ThemeRegistry {
 
   static String displayName(AppThemeId id) {
     switch (id) {
+      case AppThemeId.deepForest:
+        return 'Deep Forest';
       case AppThemeId.luminousObsidian:
         return LuminousObsidianTokens.name;
     }

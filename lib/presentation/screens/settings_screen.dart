@@ -5,6 +5,8 @@ import 'package:hive/hive.dart';
 import 'package:local_auth/local_auth.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/theme_provider.dart';
+import '../../core/theme/theme_registry.dart';
 import '../providers/app_providers.dart';
 import '../widgets/glass_card.dart';
 
@@ -525,6 +527,33 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       activeTrackColor: theme.colorScheme.primaryContainer,
                       inactiveThumbColor: theme.colorScheme.outline,
                       inactiveTrackColor: theme.colorScheme.surfaceContainerHigh,
+                    ),
+                  ),
+                  _buildDivider(context),
+                  _buildSettingTile(
+                    context,
+                    icon: Icons.palette_rounded,
+                    iconColor: theme.colorScheme.primary,
+                    title: 'App Theme',
+                    subtitle: 'Choose your visual style',
+                    trailing: DropdownButton<AppThemeId>(
+                      value: ref.watch(appThemeIdProvider),
+                      dropdownColor: theme.colorScheme.surfaceContainerHighest,
+                      underline: const SizedBox.shrink(),
+                      onChanged: (AppThemeId? newTheme) {
+                        if (newTheme != null) {
+                          ref.read(appThemeIdProvider.notifier).setTheme(newTheme);
+                        }
+                      },
+                      items: AppThemeId.values.map((AppThemeId id) {
+                        return DropdownMenuItem<AppThemeId>(
+                          value: id,
+                          child: Text(
+                            ThemeRegistry.displayName(id),
+                            style: theme.textTheme.bodyMedium,
+                          ),
+                        );
+                      }).toList(),
                     ),
                   ),
                   _buildDivider(context),

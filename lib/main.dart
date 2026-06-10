@@ -5,7 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 import 'core/constants/app_constants.dart';
-import 'core/theme/app_theme.dart';
+import 'core/theme/theme_provider.dart';
+import 'core/theme/theme_registry.dart';
 import 'data/models/transaction_model.dart';
 import 'data/models/budget_model.dart';
 import 'data/repositories/transaction_repository.dart';
@@ -57,12 +58,13 @@ class PurzeApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeModeProvider);
+    final themeId = ref.watch(appThemeIdProvider);
 
     return MaterialApp(
       title: 'Purze',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
+      theme: ThemeRegistry.themeFor(themeId, brightness: Brightness.light),
+      darkTheme: ThemeRegistry.themeFor(themeId, brightness: Brightness.dark),
       themeMode: themeMode,
       home: const AppEntry(),
     );
