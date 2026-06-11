@@ -28,7 +28,7 @@ class CategoryChip extends StatelessWidget {
       onTap: onTap,
       enableGlow: isSelected,
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(27),
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
           child: AnimatedContainer(
@@ -37,7 +37,9 @@ class CategoryChip extends StatelessWidget {
             decoration: BoxDecoration(
               color: isSelected
                   ? color.withValues(alpha: 0.25)
-                  : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
+                  : theme.colorScheme.surfaceContainerHighest.withValues(
+                      alpha: 0.45,
+                    ),
               borderRadius: BorderRadius.circular(24),
               border: Border.all(
                 color: isSelected
@@ -56,9 +58,11 @@ class CategoryChip extends StatelessWidget {
                 Text(
                   label,
                   style: theme.textTheme.labelMedium?.copyWith(
-                        color: isSelected ? color : theme.colorScheme.onSurfaceVariant,
-                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                      ),
+                    color: isSelected
+                        ? color
+                        : theme.colorScheme.onSurfaceVariant,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                  ),
                 ),
               ],
             ),
@@ -66,4 +70,5 @@ class CategoryChip extends StatelessWidget {
         ),
       ),
     );
-  }}
+  }
+}

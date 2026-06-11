@@ -90,42 +90,42 @@ class MainShell extends ConsumerWidget {
           ref.read(selectedTabProvider.notifier).state = index;
         },
         behavior: HitTestBehavior.opaque,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 6),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(14),
-                  // Micro glass selection bubble
-                  color: isSelected
-                      ? theme.colorScheme.primaryContainer.withValues(alpha: 0.25)
-                      : Colors.transparent,
-                ),
-                child: Icon(
+        child: Padding(
+          // 10px top+bottom inset from the 72px nav bar = 52px tall capsule
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeInOut,
+            decoration: BoxDecoration(
+              // Full circular radius = true capsule, no sharp edges
+              borderRadius: BorderRadius.circular(9999),
+              color: isSelected
+                  ? theme.colorScheme.primaryContainer.withValues(alpha: 0.30)
+                  : Colors.transparent,
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Icon(
                   isSelected ? selectedIcon : icon,
                   color: color,
-                  size: 20,
+                  size: 24,
                 ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                label,
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: color,
-                  fontSize: 9,
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                const SizedBox(height: 2),
+                Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 11,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

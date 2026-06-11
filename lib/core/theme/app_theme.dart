@@ -43,7 +43,10 @@ class AppTheme {
         surfaceDim: AppColors.surfaceDim,
         surfaceTint: AppColors.surfaceTint,
       ),
-      textTheme: _buildTextTheme(AppColors.onSurface, AppColors.onSurfaceVariant),
+      textTheme: _buildTextTheme(
+        AppColors.onSurface,
+        AppColors.onSurfaceVariant,
+      ),
       appBarTheme: AppBarTheme(
         backgroundColor: AppColors.surface,
         foregroundColor: AppColors.onSurface,
@@ -66,13 +69,13 @@ class AppTheme {
         }),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return GoogleFonts.raleway(
+            return GoogleFonts.geist(
               color: AppColors.primary,
               fontSize: 12,
               fontWeight: FontWeight.w600,
             );
           }
-          return GoogleFonts.raleway(
+          return GoogleFonts.geist(
             color: AppColors.outline,
             fontSize: 12,
             fontWeight: FontWeight.w500,
@@ -82,9 +85,7 @@ class AppTheme {
       cardTheme: CardThemeData(
         color: AppColors.surfaceContainerHighest,
         elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
       chipTheme: ChipThemeData(
         backgroundColor: AppColors.surfaceContainerHigh,
@@ -94,9 +95,7 @@ class AppTheme {
           fontSize: 13,
           fontWeight: FontWeight.w500,
         ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(24),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         side: BorderSide.none,
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -114,11 +113,11 @@ class AppTheme {
           borderRadius: BorderRadius.circular(16),
           borderSide: const BorderSide(color: AppColors.primary, width: 2),
         ),
-        hintStyle: GoogleFonts.raleway(
-          color: AppColors.outline,
-          fontSize: 14,
+        hintStyle: GoogleFonts.inter(color: AppColors.outline, fontSize: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 20,
+          vertical: 16,
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
@@ -129,7 +128,7 @@ class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(9999),
           ),
-          textStyle: GoogleFonts.raleway(
+          textStyle: GoogleFonts.geist(
             fontSize: 15,
             fontWeight: FontWeight.w600,
           ),
@@ -176,13 +175,16 @@ class AppTheme {
         surfaceDim: AppColors.lightSurfaceDim,
         surfaceTint: AppColors.lightPrimary,
       ),
-      textTheme: _buildTextTheme(AppColors.lightOnSurface, AppColors.lightOnSurfaceVariant),
+      textTheme: _buildTextTheme(
+        AppColors.lightOnSurface,
+        AppColors.lightOnSurfaceVariant,
+      ),
       appBarTheme: AppBarTheme(
         backgroundColor: AppColors.lightSurface,
         foregroundColor: AppColors.lightOnSurface,
         elevation: 0,
         centerTitle: false,
-        titleTextStyle: GoogleFonts.raleway(
+        titleTextStyle: GoogleFonts.geist(
           color: AppColors.lightOnSurface,
           fontSize: 20,
           fontWeight: FontWeight.w700,
@@ -199,13 +201,13 @@ class AppTheme {
         }),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return GoogleFonts.raleway(
+            return GoogleFonts.geist(
               color: AppColors.lightPrimary,
               fontSize: 12,
               fontWeight: FontWeight.w600,
             );
           }
-          return GoogleFonts.raleway(
+          return GoogleFonts.geist(
             color: AppColors.lightOutline,
             fontSize: 12,
             fontWeight: FontWeight.w500,
@@ -215,21 +217,17 @@ class AppTheme {
       cardTheme: CardThemeData(
         color: AppColors.lightSurfaceContainerHighest,
         elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
       chipTheme: ChipThemeData(
         backgroundColor: AppColors.lightSurfaceContainerHigh,
         selectedColor: AppColors.lightPrimaryContainer,
-        labelStyle: GoogleFonts.raleway(
+        labelStyle: GoogleFonts.geist(
           color: AppColors.lightOnSurface,
           fontSize: 13,
           fontWeight: FontWeight.w500,
         ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(24),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         side: BorderSide.none,
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -247,11 +245,14 @@ class AppTheme {
           borderRadius: BorderRadius.circular(16),
           borderSide: const BorderSide(color: AppColors.lightPrimary, width: 2),
         ),
-        hintStyle: GoogleFonts.raleway(
+        hintStyle: GoogleFonts.inter(
           color: AppColors.lightOutline,
           fontSize: 14,
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 20,
+          vertical: 16,
+        ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
@@ -262,7 +263,7 @@ class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(9999),
           ),
-          textStyle: GoogleFonts.raleway(
+          textStyle: GoogleFonts.geist(
             fontSize: 15,
             fontWeight: FontWeight.w600,
           ),
@@ -273,86 +274,86 @@ class AppTheme {
 
   static TextTheme _buildTextTheme(Color onSurface, Color onSurfaceVariant) {
     return TextTheme(
-      displayLarge: GoogleFonts.raleway(
-        fontSize: 56,
+      displayLarge: GoogleFonts.geist(
+        fontSize: 62,
         fontWeight: FontWeight.w700,
         color: onSurface,
         letterSpacing: -1.5,
       ),
-      displayMedium: GoogleFonts.raleway(
-        fontSize: 45,
-        fontWeight: FontWeight.w700,
+      displayMedium: GoogleFonts.geist(
+        fontSize: 51,
+        fontWeight: FontWeight.w800,
         color: onSurface,
         letterSpacing: -0.5,
       ),
-      displaySmall: GoogleFonts.raleway(
-        fontSize: 36,
+      displaySmall: GoogleFonts.geist(
+        fontSize: 42,
         fontWeight: FontWeight.w600,
         color: onSurface,
       ),
-      headlineLarge: GoogleFonts.raleway(
-        fontSize: 32,
+      headlineLarge: GoogleFonts.geist(
+        fontSize: 38,
         fontWeight: FontWeight.w700,
         color: onSurface,
       ),
-      headlineMedium: GoogleFonts.raleway(
+      headlineMedium: GoogleFonts.geist(
+        fontSize: 36,
+        fontWeight: FontWeight.w800,
+        color: onSurface,
+      ),
+      headlineSmall: GoogleFonts.geist(
+        fontSize: 30,
+        fontWeight: FontWeight.w600,
+        color: onSurface,
+      ),
+      titleLarge: GoogleFonts.geist(
         fontSize: 28,
-        fontWeight: FontWeight.w600,
+        fontWeight: FontWeight.w700,
         color: onSurface,
       ),
-      headlineSmall: GoogleFonts.raleway(
-        fontSize: 24,
-        fontWeight: FontWeight.w600,
-        color: onSurface,
-      ),
-      titleLarge: GoogleFonts.raleway(
+      titleMedium: GoogleFonts.geist(
         fontSize: 22,
-        fontWeight: FontWeight.w600,
-        color: onSurface,
-      ),
-      titleMedium: GoogleFonts.raleway(
-        fontSize: 16,
-        fontWeight: FontWeight.w600,
+        fontWeight: FontWeight.w700,
         color: onSurface,
         letterSpacing: 0.15,
       ),
-      titleSmall: GoogleFonts.raleway(
-        fontSize: 14,
-        fontWeight: FontWeight.w500,
+      titleSmall: GoogleFonts.geist(
+        fontSize: 23,
+        fontWeight: FontWeight.w700,
         color: onSurface,
         letterSpacing: 0.1,
       ),
-      bodyLarge: GoogleFonts.raleway(
+      bodyLarge: GoogleFonts.inter(
         fontSize: 16,
         fontWeight: FontWeight.w400,
         color: onSurface,
         letterSpacing: 0.5,
       ),
-      bodyMedium: GoogleFonts.raleway(
+      bodyMedium: GoogleFonts.inter(
         fontSize: 14,
         fontWeight: FontWeight.w400,
         color: onSurface,
         letterSpacing: 0.25,
       ),
-      bodySmall: GoogleFonts.raleway(
+      bodySmall: GoogleFonts.inter(
         fontSize: 12,
         fontWeight: FontWeight.w400,
         color: onSurfaceVariant,
         letterSpacing: 0.4,
       ),
-      labelLarge: GoogleFonts.raleway(
+      labelLarge: GoogleFonts.geist(
         fontSize: 14,
         fontWeight: FontWeight.w600,
         color: onSurface,
         letterSpacing: 0.1,
       ),
-      labelMedium: GoogleFonts.raleway(
+      labelMedium: GoogleFonts.geist(
         fontSize: 12,
         fontWeight: FontWeight.w500,
         color: onSurface,
         letterSpacing: 0.5,
       ),
-      labelSmall: GoogleFonts.raleway(
+      labelSmall: GoogleFonts.geist(
         fontSize: 11,
         fontWeight: FontWeight.w500,
         color: onSurfaceVariant,

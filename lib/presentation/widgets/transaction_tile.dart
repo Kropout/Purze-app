@@ -62,7 +62,7 @@ class TransactionTile extends ConsumerWidget {
                         Text(
                           transaction.merchant,
                           style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                fontWeight: FontWeight.w600,
+                                fontWeight: FontWeight.w700,
                                 fontSize: 14,
                               ),
                         ),
