@@ -11,12 +11,43 @@ import 'analytics_screen.dart';
 import 'budget_screen.dart';
 import 'settings_screen.dart';
 
-class MainShell extends ConsumerWidget {
+class MainShell extends ConsumerStatefulWidget {
   const MainShell({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MainShell> createState() => _MainShellState();
+}
+
+class _MainShellState extends ConsumerState<MainShell> {
+  late PageController _pageController;
+
+  @override
+  void initState() {
+    super.initState();
+    final initialPage = ref.read(selectedTabProvider);
+    _pageController = PageController(initialPage: initialPage);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final selectedTab = ref.watch(selectedTabProvider);
+
+    // Sync PageView when Riverpod state changes from bottom navigation taps
+    ref.listen<int>(selectedTabProvider, (previous, next) {
+      if (_pageController.hasClients && _pageController.page?.round() != next) {
+        _pageController.animateToPage(
+          next,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
+      }
+    });
 
     final screens = const [
       HomeScreen(),
@@ -30,8 +61,12 @@ class MainShell extends ConsumerWidget {
       child: Scaffold(
         backgroundColor: Colors.transparent,
         extendBody: true, // Allows page content to scroll behind the floating glass capsule
-        body: IndexedStack(
-          index: selectedTab,
+        body: PageView(
+          controller: _pageController,
+          onPageChanged: (index) {
+            ref.read(selectedTabProvider.notifier).state = index;
+          },
+          physics: const BouncingScrollPhysics(),
           children: screens,
         ),
         bottomNavigationBar: SafeArea(

@@ -34,34 +34,39 @@ class _AmbientBackgroundState extends State<AmbientBackground> with SingleTicker
         // Base surface color
         Container(color: theme.colorScheme.surface),
         
-        // Animated glow
+        // Animated glow & Dynamic Noise
         AnimatedBuilder(
           animation: _controller,
           builder: (context, child) {
             final value = _controller.value;
             final alignmentX = -1.0 + (value * 0.4); 
             final alignmentY = -1.0 + (value * 0.2); 
-            return Container(
-              decoration: BoxDecoration(
-                gradient: RadialGradient(
-                  center: Alignment(alignmentX, alignmentY),
-                  radius: (1.5 + (value * 0.3)) * 0.8575,
-                  colors: [
-                    glowColor,
-                    glowColor.withValues(alpha: 0.0),
-                  ],
-                  stops: const [0.0, 1.0],
+            return Stack(
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: RadialGradient(
+                      center: Alignment(alignmentX, alignmentY),
+                      radius: (1.5 + (value * 0.3)) * 0.8575,
+                      colors: [
+                        glowColor,
+                        glowColor.withValues(alpha: 0.0),
+                      ],
+                      stops: const [0.0, 1.0],
+                    ),
+                  ),
                 ),
-              ),
+                Positioned.fill(
+                  child: CustomPaint(
+                    painter: NoisePainter(
+                      color: theme.colorScheme.onSurface,
+                      animationValue: value,
+                    ),
+                  ),
+                ),
+              ],
             );
           },
-        ),
-
-        // Noise Overlay
-        Positioned.fill(
-          child: CustomPaint(
-            painter: NoisePainter(color: theme.colorScheme.onSurface),
-          ),
         ),
         
         // Content
@@ -73,23 +78,36 @@ class _AmbientBackgroundState extends State<AmbientBackground> with SingleTicker
 
 class NoisePainter extends CustomPainter {
   final Color color;
-  NoisePainter({required this.color});
+  final double animationValue;
+  NoisePainter({required this.color, required this.animationValue});
 
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = color.withValues(alpha: 0.035)
+      // 2.2x stronger noise visibility (0.035 * 2.2 = 0.077)
+      ..color = color.withValues(alpha: 0.077)
       ..style = PaintingStyle.fill;
 
     final rand = math.Random(1337);
     final count = (size.width * size.height) / 1000;
+    
+    // Controlled drifting animation offset (circular orbit)
+    final offsetX = math.sin(animationValue * 2 * math.pi) * 12.0;
+    final offsetY = math.cos(animationValue * 2 * math.pi) * 12.0;
+
     for (int i = 0; i < count; i++) {
-      final x = rand.nextDouble() * size.width;
-      final y = rand.nextDouble() * size.height;
+      final rx = rand.nextDouble() * size.width;
+      final ry = rand.nextDouble() * size.height;
+      
+      // Wrap coordinates around screen boundaries
+      final x = (rx + offsetX) % size.width;
+      final y = (ry + offsetY) % size.height;
+      
       canvas.drawRect(Rect.fromLTWH(x, y, 1.2, 1.2), paint);
     }
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant NoisePainter oldDelegate) => 
+      oldDelegate.animationValue != animationValue || oldDelegate.color != color;
 }
