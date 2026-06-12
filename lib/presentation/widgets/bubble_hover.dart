@@ -6,6 +6,7 @@ class BubbleHover extends StatefulWidget {
   final bool enableScale;
   final bool enableGlow;
   final double borderRadius;
+  final BorderRadius? customBorderRadius;
   final VoidCallback? onTap;
 
   const BubbleHover({
@@ -14,6 +15,7 @@ class BubbleHover extends StatefulWidget {
     this.enableScale = true,
     this.enableGlow = true,
     this.borderRadius = 16,
+    this.customBorderRadius,
     this.onTap,
   });
 
@@ -56,6 +58,7 @@ class _BubbleHoverState extends State<BubbleHover>
   @override
   Widget build(BuildContext context) {
     final scale = widget.enableScale ? 1.0 + (0.03 * _animation.value) : 1.0;
+    final resolvedBorderRadius = widget.customBorderRadius ?? BorderRadius.circular(widget.borderRadius);
     
     return MouseRegion(
       onEnter: (_) => _handleHover(true),
@@ -76,7 +79,7 @@ class _BubbleHoverState extends State<BubbleHover>
                     Positioned.fill(
                       child: Container(
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(widget.borderRadius),
+                          borderRadius: resolvedBorderRadius,
                           boxShadow: [
                             BoxShadow(
                               color: AppColors.primary.withValues(
@@ -99,7 +102,7 @@ class _BubbleHoverState extends State<BubbleHover>
 
                   // 2. Child Content Layer
                   ClipRRect(
-                    borderRadius: BorderRadius.circular(widget.borderRadius),
+                    borderRadius: resolvedBorderRadius,
                     child: widget.child,
                   ),
 
@@ -108,7 +111,7 @@ class _BubbleHoverState extends State<BubbleHover>
                     child: IgnorePointer(
                       child: Container(
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(widget.borderRadius),
+                          borderRadius: resolvedBorderRadius,
                           gradient: LinearGradient(
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
@@ -134,7 +137,7 @@ class _BubbleHoverState extends State<BubbleHover>
                     child: IgnorePointer(
                       child: CustomPaint(
                         painter: _IridescentBorderPainter(
-                          borderRadius: widget.borderRadius,
+                          borderRadius: resolvedBorderRadius,
                           hoverProgress: _animation.value,
                         ),
                       ),
@@ -151,7 +154,7 @@ class _BubbleHoverState extends State<BubbleHover>
 }
 
 class _IridescentBorderPainter extends CustomPainter {
-  final double borderRadius;
+  final BorderRadius borderRadius;
   final double hoverProgress;
 
   _IridescentBorderPainter({
@@ -162,7 +165,7 @@ class _IridescentBorderPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final rect = Offset.zero & size;
-    final rrect = RRect.fromRectAndRadius(rect, Radius.circular(borderRadius));
+    final rrect = borderRadius.toRRect(rect);
 
     final paint = Paint()
       ..strokeWidth = 1.0 + 0.5 * hoverProgress

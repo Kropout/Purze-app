@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../core/theme/app_colors.dart';
@@ -26,6 +27,7 @@ class HomeScreen extends ConsumerWidget {
     return SafeArea(
       child: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
+        dragStartBehavior: DragStartBehavior.down,
         padding: const EdgeInsets.symmetric(horizontal: 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -91,22 +93,24 @@ class HomeScreen extends ConsumerWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      _buildStat(
-                        context,
-                        'Spent',
-                        '$currency${formatter.format(totalSpent)}',
-                        AppColors.debit,
+                      AnimatedBudgetStat(
+                        label: 'Spent',
+                        targetValue: totalSpent,
+                        valueColor: AppColors.debit,
+                        currency: currency,
+                        formatter: formatter,
                       ),
                       Container(
                         width: 1,
                         height: 36,
                         color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.25),
                       ),
-                      _buildStat(
-                        context,
-                        'Remaining',
-                        '$currency${formatter.format((totalBudget - totalSpent).clamp(0, double.infinity))}',
-                        AppColors.credit,
+                      AnimatedBudgetStat(
+                        label: 'Remaining',
+                        targetValue: (totalBudget - totalSpent).clamp(0, double.infinity),
+                        valueColor: AppColors.credit,
+                        currency: currency,
+                        formatter: formatter,
                       ),
                     ],
                   ),
@@ -174,6 +178,7 @@ class HomeScreen extends ConsumerWidget {
               height: 44,
               child: ListView(
                 scrollDirection: Axis.horizontal,
+                dragStartBehavior: DragStartBehavior.down,
                 children: [
                   for (final cat in [
                     TransactionCategory.food,
@@ -251,27 +256,7 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildStat(
-      BuildContext context, String label, String value, Color valueColor) {
-    return Column(
-      children: [
-        Text(
-          label,
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: Theme.of(context).colorScheme.outline,
-              ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: valueColor,
-                fontWeight: FontWeight.w700,
-              ),
-        ),
-      ],
-    );
-  }
+
 
   String _getGreetingLabel() {
     final hour = DateTime.now().hour;
@@ -356,5 +341,89 @@ class HomeScreen extends ConsumerWidget {
 
     final index = seed % messages.length;
     return messages[index];
+  }
+}
+
+class AnimatedBudgetStat extends StatefulWidget {
+  final String label;
+  final double targetValue;
+  final Color valueColor;
+  final String currency;
+  final NumberFormat formatter;
+
+  const AnimatedBudgetStat({
+    super.key,
+    required this.label,
+    required this.targetValue,
+    required this.valueColor,
+    required this.currency,
+    required this.formatter,
+  });
+
+  @override
+  State<AnimatedBudgetStat> createState() => _AnimatedBudgetStatState();
+}
+
+class _AnimatedBudgetStatState extends State<AnimatedBudgetStat>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 3000), // Animate for 3.0s (2.8-3.1s range)
+      vsync: this,
+    );
+    _animation = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeInOutCubic,
+    );
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final casinoValues = const [0, 5, 8, 15, 78, 31, 12, 56, 60];
+
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, child) {
+        double currentValue;
+        if (_animation.value < 0.85) {
+          final index = ((_animation.value / 0.85) * (casinoValues.length - 1)).toInt();
+          final pct = casinoValues[index.clamp(0, casinoValues.length - 1)] / 100.0;
+          currentValue = widget.targetValue * pct;
+        } else {
+          currentValue = widget.targetValue;
+        }
+
+        return Column(
+          children: [
+            Text(
+              widget.label,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: Theme.of(context).colorScheme.outline,
+                  ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '${widget.currency}${widget.formatter.format(currentValue)}',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: widget.valueColor,
+                    fontWeight: FontWeight.w700,
+                  ),
+            ),
+          ],
+        );
+      },
+    );
   }
 }

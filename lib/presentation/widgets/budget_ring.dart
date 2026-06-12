@@ -19,34 +19,42 @@ class BudgetRing extends StatefulWidget {
 }
 
 class _BudgetRingState extends State<BudgetRing>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _animation;
+  late AnimationController _glowController;
 
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: const Duration(milliseconds: 1500),
+      duration: const Duration(milliseconds: 2500), // Slower linear animation
       vsync: this,
     );
     _animation = CurvedAnimation(
       parent: _controller,
-      curve: Curves.easeInOutCubic,
+      curve: Curves.linear,
     );
+    
+    _glowController = AnimationController(
+      duration: const Duration(milliseconds: 400), // Glow radiates 2x faster
+      vsync: this,
+    )..repeat();
+
     _controller.forward();
   }
 
   @override
   void dispose() {
     _controller.dispose();
+    _glowController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final hasBudget = widget.total > 0;
-    final percentage = !hasBudget
+    final targetPercentage = !hasBudget
         ? 0.0
         : (widget.spent / widget.total).clamp(0.0, 1.0);
     final isOverBudget = hasBudget && widget.spent > widget.total;
@@ -55,24 +63,29 @@ class _BudgetRingState extends State<BudgetRing>
         ? AppColors.outline
         : (isOverBudget ? AppColors.debit : AppColors.primary);
 
+
+
     return AnimatedBuilder(
-      animation: _animation,
+      animation: Listenable.merge([_animation, _glowController]),
       builder: (context, child) {
+      double currentPercentage = targetPercentage * _animation.value;
+
         return SizedBox(
           width: widget.size,
           height: widget.size,
           child: CustomPaint(
             painter: _BudgetRingPainter(
-              progress: percentage * _animation.value,
+              progress: currentPercentage,
               isOverBudget: isOverBudget,
               hasBudget: hasBudget,
+              glowProgress: _glowController.value,
             ),
             child: Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    '${(percentage * 100 * _animation.value).toInt()}%',
+                    '${(currentPercentage * 100).toInt()}%',
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                           fontWeight: FontWeight.w700,
                           color: valueColor,
@@ -99,11 +112,13 @@ class _BudgetRingPainter extends CustomPainter {
   final double progress;
   final bool isOverBudget;
   final bool hasBudget;
+  final double glowProgress;
 
   _BudgetRingPainter({
     required this.progress,
     required this.isOverBudget,
     required this.hasBudget,
+    required this.glowProgress,
   });
 
   @override
@@ -154,15 +169,17 @@ class _BudgetRingPainter extends CustomPainter {
 
     // Glow dot at the end
     if (progress > 0.01) {
+      final casinoValues = const [0, 15, 33, 48, 52, 69, 81, 95, 100];
       final angle = -math.pi / 2 + 2 * math.pi * progress;
       final dotX = center.dx + radius * math.cos(angle);
       final dotY = center.dy + radius * math.sin(angle);
 
+      // Radiating glow effect - radiates outward 2x faster (400ms duration)
       final glowPaint = Paint()
         ..color = (isOverBudget ? AppColors.debit : AppColors.primary)
-            .withValues(alpha: 0.4)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
-      canvas.drawCircle(Offset(dotX, dotY), 6, glowPaint);
+            .withValues(alpha: 0.5 * (1.0 - glowProgress))
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, (6 + 14 * glowProgress) * 0.5);
+      canvas.drawCircle(Offset(dotX, dotY), 6 + 14 * glowProgress, glowPaint);
 
       final dotPaint = Paint()
         ..color = isOverBudget ? AppColors.debit : AppColors.primary;
@@ -174,6 +191,7 @@ class _BudgetRingPainter extends CustomPainter {
   bool shouldRepaint(covariant _BudgetRingPainter oldDelegate) {
     return oldDelegate.progress != progress ||
         oldDelegate.isOverBudget != isOverBudget ||
-        oldDelegate.hasBudget != hasBudget;
+        oldDelegate.hasBudget != hasBudget ||
+        oldDelegate.glowProgress != glowProgress;
   }
 }

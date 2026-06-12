@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
@@ -67,7 +68,16 @@ class PurzeApp extends ConsumerWidget {
       darkTheme: ThemeRegistry.themeFor(themeId, brightness: Brightness.dark),
       themeMode: themeMode,
       home: const AppEntry(),
+      builder: (context, child) {
+        return MediaQuery(
+          data: MediaQuery.of(context).copyWith(
+            gestureSettings: const DeviceGestureSettings(touchSlop: 4.0),
+          ),
+          child: child!,
+        );
+      },
     );
   }
 }
+
 

@@ -1,19 +1,67 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_colors.dart';
 import '../../domain/entities/category.dart';
+import '../../data/models/transaction_model.dart';
 import '../providers/app_providers.dart';
 import '../widgets/category_chip.dart';
 import '../widgets/transaction_tile.dart';
 
-class TransactionsScreen extends ConsumerWidget {
+class TransactionsScreen extends ConsumerStatefulWidget {
   const TransactionsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<TransactionsScreen> createState() => _TransactionsScreenState();
+}
+
+class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
+  late final ScrollController _scrollController;
+  int _visibleCount = 20;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    final maxScroll = _scrollController.position.maxScrollExtent;
+    final currentScroll = _scrollController.position.pixels;
+    const threshold = 200.0;
+    if (maxScroll - currentScroll <= threshold) {
+      final total = ref.read(searchedTransactionsProvider).length;
+      if (_visibleCount < total) {
+        setState(() {
+          _visibleCount = (_visibleCount + 20).clamp(0, total);
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Reset visible count when search results or filters change
+    ref.listen<List<TransactionModel>>(searchedTransactionsProvider, (previous, next) {
+      if (mounted) {
+        setState(() {
+          _visibleCount = 20;
+        });
+      }
+    });
+
     final transactions = ref.watch(searchedTransactionsProvider);
     final selectedCategory = ref.watch(selectedCategoryFilterProvider);
     final searchQuery = ref.watch(searchQueryProvider);
+    final displayCount = _visibleCount.clamp(0, transactions.length);
 
     return SafeArea(
       child: Column(
@@ -60,6 +108,7 @@ class TransactionsScreen extends ConsumerWidget {
             height: 44,
             child: ListView(
               scrollDirection: Axis.horizontal,
+              dragStartBehavior: DragStartBehavior.down,
               padding: const EdgeInsets.symmetric(horizontal: 20),
               children: [
                 Padding(
@@ -125,9 +174,11 @@ class TransactionsScreen extends ConsumerWidget {
                     ),
                   )
                 : ListView.builder(
+                    controller: _scrollController,
                     physics: const BouncingScrollPhysics(),
+                    dragStartBehavior: DragStartBehavior.down,
                     padding: const EdgeInsets.symmetric(horizontal: 20),
-                    itemCount: transactions.length,
+                    itemCount: displayCount,
                     itemBuilder: (context, index) {
                       // Group by date header
                       final transaction = transactions[index];
@@ -187,3 +238,4 @@ class TransactionsScreen extends ConsumerWidget {
     return months[month - 1];
   }
 }
+
