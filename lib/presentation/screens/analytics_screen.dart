@@ -146,9 +146,11 @@ class AnalyticsScreen extends ConsumerWidget {
                     children: spending.entries.map((entry) {
                       final category =
                           TransactionCategory.values[entry.key];
+                      final total = spending.values.fold(0.0, (a, b) => a + b);
+                      final pct = total == 0 ? 0.0 : (entry.value / total * 100);
                       return _buildLegendItem(
                         context,
-                        category.label,
+                        '${category.label} (${pct.toStringAsFixed(0)}%)',
                         category.color,
                         '$currency${formatter.format(entry.value)}',
                       );
@@ -394,21 +396,13 @@ class AnalyticsScreen extends ConsumerWidget {
   }
 
   List<PieChartSectionData> _buildDonutSections(Map<int, double> spending) {
-    final total = spending.values.fold(0.0, (a, b) => a + b);
     return spending.entries.map((entry) {
       final category = TransactionCategory.values[entry.key];
-      final percentage = (entry.value / total * 100);
       return PieChartSectionData(
         value: entry.value,
-        title: '${percentage.toStringAsFixed(0)}%',
-        titleStyle: const TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: Colors.white,
-        ),
+        showTitle: false,
         color: category.color,
         radius: 32,
-        titlePositionPercentageOffset: 0.55,
       );
     }).toList();
   }
