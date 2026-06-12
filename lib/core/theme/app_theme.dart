@@ -9,7 +9,7 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
-      scaffoldBackgroundColor: AppColors.surface,
+      scaffoldBackgroundColor: Colors.transparent,
       colorScheme: const ColorScheme.dark(
         primary: AppColors.primary,
         onPrimary: AppColors.onPrimary,
@@ -141,7 +141,7 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
-      scaffoldBackgroundColor: AppColors.lightSurface,
+      scaffoldBackgroundColor: Colors.transparent,
       colorScheme: const ColorScheme.light(
         primary: AppColors.lightPrimary,
         onPrimary: AppColors.lightOnPrimary,

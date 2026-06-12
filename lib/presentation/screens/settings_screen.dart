@@ -8,6 +8,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/theme_provider.dart';
 import '../../core/theme/theme_registry.dart';
 import '../providers/app_providers.dart';
+import '../widgets/ambient_background.dart';
 import '../widgets/glass_card.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -259,8 +260,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final currency = ref.watch(currencySymbolProvider);
     final theme = Theme.of(context);
 
-    return Scaffold(
-      backgroundColor: Colors.transparent,
+    return AmbientBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
       body: SafeArea(
         child: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
@@ -277,7 +279,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             Text(
               'Customize your experience',
               style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.outline,
+                    color: Colors.black54,
+                    fontWeight: FontWeight.w600,
                   ),
             ),
             const SizedBox(height: 32),
@@ -881,7 +884,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
       ),
     ),
-    );
+  ),
+);
   }
 
   Widget _buildSectionHeader(BuildContext context, String title) {
@@ -1036,16 +1040,17 @@ class PrivacyPolicyScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'Privacy Policy',
-          style: theme.textTheme.headlineSmall,
+    return AmbientBackground(
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(
+            'Privacy Policy',
+            style: theme.textTheme.headlineSmall,
+          ),
+          centerTitle: true,
+          elevation: 0,
+          backgroundColor: Colors.transparent,
         ),
-        centerTitle: true,
-        elevation: 0,
-        backgroundColor: Colors.transparent,
-      ),
       body: SafeArea(
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
@@ -1117,8 +1122,9 @@ class PrivacyPolicyScreen extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
 class TermsConditionsScreen extends StatelessWidget {
@@ -1128,16 +1134,17 @@ class TermsConditionsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'Terms & Conditions',
-          style: theme.textTheme.headlineSmall,
+    return AmbientBackground(
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(
+            'Terms & Conditions',
+            style: theme.textTheme.headlineSmall,
+          ),
+          centerTitle: true,
+          elevation: 0,
+          backgroundColor: Colors.transparent,
         ),
-        centerTitle: true,
-        elevation: 0,
-        backgroundColor: Colors.transparent,
-      ),
       body: SafeArea(
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
@@ -1224,6 +1231,7 @@ class TermsConditionsScreen extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

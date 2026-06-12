@@ -38,7 +38,8 @@ class HomeScreen extends ConsumerWidget {
                 Text(
                   _getGreeting(),
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.outline,
+                        color: Colors.black54,
+                        fontWeight: FontWeight.w600,
                       ),
                 ),
                 const SizedBox(height: 4),

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:ui';
 
 import '../providers/app_providers.dart';
+import '../widgets/ambient_background.dart';
 import '../widgets/bubble_hover.dart';
 import 'home_screen.dart';
 import 'transactions_screen.dart';
@@ -25,41 +26,44 @@ class MainShell extends ConsumerWidget {
       SettingsScreen(),
     ];
 
-    return Scaffold(
-      extendBody: true, // Allows page content to scroll behind the floating glass capsule
-      body: IndexedStack(
-        index: selectedTab,
-        children: screens,
-      ),
-      bottomNavigationBar: SafeArea(
-        child: Container(
-          margin: const EdgeInsets.fromLTRB(0, 0, 0, 16), // Premium Floating Pill position edge-to-edge, 16px above bottom
-          child: BubbleHover(
-            borderRadius: 24,
-            enableScale: false, // Capsule container does not scale, items inside scale instead
-            enableGlow: true,
-            child: Container(
-              height: 72,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(24),
-                // Semi-translucent base background
-                color: Theme.of(context).colorScheme.surfaceContainer.withValues(alpha: 0.45),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(24),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        _buildNavItem(context, ref, 0, Icons.home_outlined, Icons.home_rounded, 'Home', selectedTab),
-                        _buildNavItem(context, ref, 1, Icons.receipt_long_outlined, Icons.receipt_long_rounded, 'Txns', selectedTab),
-                        _buildNavItem(context, ref, 2, Icons.pie_chart_outline_rounded, Icons.pie_chart_rounded, 'Analytics', selectedTab),
-                        _buildNavItem(context, ref, 3, Icons.account_balance_wallet_outlined, Icons.account_balance_wallet_rounded, 'Budget', selectedTab),
-                        _buildNavItem(context, ref, 4, Icons.settings_outlined, Icons.settings_rounded, 'Settings', selectedTab),
-                      ],
+    return AmbientBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        extendBody: true, // Allows page content to scroll behind the floating glass capsule
+        body: IndexedStack(
+          index: selectedTab,
+          children: screens,
+        ),
+        bottomNavigationBar: SafeArea(
+          child: Container(
+            margin: const EdgeInsets.fromLTRB(0, 0, 0, 16), // Premium Floating Pill position edge-to-edge, 16px above bottom
+            child: BubbleHover(
+              borderRadius: 24,
+              enableScale: false, // Capsule container does not scale, items inside scale instead
+              enableGlow: true,
+              child: Container(
+                height: 72,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(24),
+                  // Semi-translucent base background
+                  color: Theme.of(context).colorScheme.surfaceContainer.withValues(alpha: 0.45),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(24),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: [
+                          _buildNavItem(context, ref, 0, Icons.home_outlined, Icons.home_rounded, 'Home', selectedTab),
+                          _buildNavItem(context, ref, 1, Icons.receipt_long_outlined, Icons.receipt_long_rounded, 'Txns', selectedTab),
+                          _buildNavItem(context, ref, 2, Icons.pie_chart_outline_rounded, Icons.pie_chart_rounded, 'Analytics', selectedTab),
+                          _buildNavItem(context, ref, 3, Icons.account_balance_wallet_outlined, Icons.account_balance_wallet_rounded, 'Budget', selectedTab),
+                          _buildNavItem(context, ref, 4, Icons.settings_outlined, Icons.settings_rounded, 'Settings', selectedTab),
+                        ],
+                      ),
                     ),
                   ),
                 ),

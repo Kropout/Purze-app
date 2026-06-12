@@ -37,7 +37,8 @@ class BudgetScreen extends ConsumerWidget {
             Text(
               DateFormat('MMMM yyyy').format(DateTime.now()),
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.outline,
+                    color: Colors.black54,
+                    fontWeight: FontWeight.w600,
                   ),
             ),
 

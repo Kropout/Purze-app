@@ -10,6 +10,7 @@ import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_colors.dart';
 import '../providers/app_providers.dart';
 import '../widgets/glass_card.dart';
+import '../widgets/ambient_background.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
@@ -304,8 +305,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   Widget build(BuildContext context) {
     final currency = ref.watch(currencySymbolProvider);
 
-    return Scaffold(
-      body: SafeArea(
+    return AmbientBackground(
+      child: Scaffold(
+        body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Column(
@@ -318,12 +320,16 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   Text(
                     'Step ${_step + 1}/7',
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: Theme.of(context).colorScheme.outline,
+                          color: Colors.black54,
+                          fontWeight: FontWeight.w600,
                         ),
                   ),
                   if (_step > 0)
                     TextButton(
                       onPressed: _goBack,
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.black54,
+                      ),
                       child: const Text('Back'),
                     ),
                 ],
@@ -639,6 +645,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }
