@@ -31,12 +31,12 @@ class HomeScreen extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 24),
-            // ─── Greeting ───
+             // ─── Greeting ───
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _getGreeting(),
+                  _getGreetingLabel(),
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: Colors.black54,
                         fontWeight: FontWeight.w600,
@@ -44,7 +44,7 @@ class HomeScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  displayName,
+                  _getCozyGreeting(displayName),
                   style: Theme.of(context).textTheme.headlineMedium,
                 ),
               ],
@@ -273,10 +273,88 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  String _getGreeting() {
+  String _getGreetingLabel() {
     final hour = DateTime.now().hour;
-    if (hour < 12) return 'Good Morning,';
-    if (hour < 17) return 'Good Afternoon,';
-    return 'Good Evening,';
+    if (hour >= 4 && hour < 6) return 'EARLY BIRD';
+    if (hour >= 6 && hour < 12) return 'WELCOME BACK';
+    if (hour >= 12 && hour < 17) return 'MIDDAY REVIEW';
+    if (hour >= 17 && hour < 21) return 'UNWIND';
+    return 'REST & RECHARGE';
+  }
+
+  String _getCozyGreeting(String name) {
+    final hour = DateTime.now().hour;
+    final seed = DateTime.now().day + DateTime.now().hour;
+    
+    final List<String> messages;
+    if (hour >= 4 && hour < 6) {
+      messages = [
+        "Rise and shine, $name",
+        "Up with the birds, $name?",
+        "A fresh start awaits, $name",
+        "Early start today, $name?",
+        "The world is quiet, $name",
+        "Ready to conquer, $name?",
+        "Quiet mornings are the best, $name",
+        "Dawn of a new day, $name",
+        "Let's make today count, $name",
+        "Chase your dreams, $name",
+      ];
+    } else if (hour >= 6 && hour < 12) {
+      messages = [
+        "Good morning, $name",
+        "Have a wonderful morning, $name",
+        "Hope you slept well, $name",
+        "Ready for a great day, $name?",
+        "Wishing you a bright morning, $name",
+        "Grab your coffee, $name",
+        "Let's do this, $name!",
+        "A beautiful morning, $name",
+        "Hope your day starts well, $name",
+        "Make today amazing, $name",
+      ];
+    } else if (hour >= 12 && hour < 17) {
+      messages = [
+        "Good afternoon, $name",
+        "How is your day going, $name?",
+        "Midday check-in, $name",
+        "Taking a quick break, $name?",
+        "Hope your afternoon is productive, $name",
+        "Keep pushing forward, $name",
+        "Halfway through the day, $name",
+        "Stay focused, $name",
+        "Time for a stretch, $name?",
+        "Wishing you a calm afternoon, $name",
+      ];
+    } else if (hour >= 17 && hour < 21) {
+      messages = [
+        "Good evening, $name",
+        "Time to unwind, $name",
+        "Hope you had a good day, $name",
+        "Evening reflection, $name",
+        "Relax and recharge, $name",
+        "Sun is setting, time to rest, $name",
+        "Cozy evening vibes, $name",
+        "How did the day go, $name?",
+        "Peaceful evening to you, $name",
+        "Time to log off soon, $name",
+      ];
+    } else {
+      messages = [
+        "Rest well, $name",
+        "Sweet dreams, $name",
+        "Late night check-in, $name",
+        "Quiet night, $name",
+        "Time to sleep soon, $name",
+        "Unwinding for the night, $name",
+        "Sleep tight, $name",
+        "Hope you had a restful day, $name",
+        "Peaceful night, $name",
+        "Off to bed, $name?",
+      ];
+    }
+
+    final index = seed % messages.length;
+    return messages[index];
   }
 }
