@@ -69,7 +69,7 @@ class PurzeApp extends ConsumerWidget {
       themeMode: themeMode,
       scrollBehavior: const MaterialScrollBehavior().copyWith(
         physics: const BouncingScrollPhysics(
-          decelerationRate: ScrollDecelerationRate.fast,
+          decelerationRate: ScrollDecelerationRate.normal,
         ),
       ),
       home: const AppEntry(),
