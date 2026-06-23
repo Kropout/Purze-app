@@ -67,6 +67,11 @@ class PurzeApp extends ConsumerWidget {
       theme: ThemeRegistry.themeFor(themeId, brightness: Brightness.light),
       darkTheme: ThemeRegistry.themeFor(themeId, brightness: Brightness.dark),
       themeMode: themeMode,
+      scrollBehavior: const MaterialScrollBehavior().copyWith(
+        physics: const BouncingScrollPhysics(
+          decelerationRate: ScrollDecelerationRate.fast,
+        ),
+      ),
       home: const AppEntry(),
       builder: (context, child) {
         return MediaQuery(

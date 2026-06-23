@@ -8,6 +8,9 @@ import '../providers/app_providers.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/shimmer_progress_bar.dart';
 
+// Cached number formatter for currency values
+final NumberFormat _currencyFormatter = NumberFormat('#,##,###', 'en_IN');
+
 class BudgetScreen extends ConsumerWidget {
   const BudgetScreen({super.key});
 
@@ -18,7 +21,7 @@ class BudgetScreen extends ConsumerWidget {
     final totalSpent = ref.watch(totalSpentProvider);
     final totalBudget = ref.watch(totalBudgetProvider);
     final currency = ref.watch(currencySymbolProvider);
-    final formatter = NumberFormat('#,##,###', 'en_IN');
+    final formatter = _currencyFormatter; // use cached formatter
 
     final sumOfCategoryBudgets = categoryBudgets.values.fold(0.0, (sum, val) => sum + val);
 

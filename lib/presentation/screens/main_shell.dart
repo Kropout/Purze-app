@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/gestures.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:ui';
 
@@ -21,6 +21,10 @@ class MainShell extends ConsumerStatefulWidget {
 
 class _MainShellState extends ConsumerState<MainShell> {
   late PageController _pageController;
+  double _startX = 0.0;
+  double _startOffset = 0.0;
+  bool _isSwiping = false;
+  int _pointerId = 0;
 
   @override
   void initState() {
@@ -35,6 +39,19 @@ class _MainShellState extends ConsumerState<MainShell> {
     super.dispose();
   }
 
+  void _snapToPage() {
+    if (!_pageController.hasClients) return;
+    final double currentPage = _pageController.page ?? 0.0;
+    final int targetPage = currentPage.round().clamp(0, 4);
+    
+    _pageController.animateToPage(
+      targetPage,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOutCubic,
+    );
+    HapticFeedback.lightImpact();
+  }
+
   @override
   Widget build(BuildContext context) {
     final selectedTab = ref.watch(selectedTabProvider);
@@ -44,8 +61,8 @@ class _MainShellState extends ConsumerState<MainShell> {
       if (_pageController.hasClients && _pageController.page?.round() != next) {
         _pageController.animateToPage(
           next,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOutCubic,
         );
       }
     });
@@ -63,15 +80,50 @@ class _MainShellState extends ConsumerState<MainShell> {
         backgroundColor: Colors.transparent,
         extendBody:
             true, // Allows page content to scroll behind the floating glass capsule
-        body: PageView.builder(
-          controller: _pageController,
-          itemCount: screens.length,
-          itemBuilder: (context, index) => screens[index],
-          onPageChanged: (index) {
-            ref.read(selectedTabProvider.notifier).state = index;
+        body: Listener(
+          onPointerDown: (event) {
+            _startX = event.position.dx;
+            _startOffset = _pageController.hasClients ? _pageController.position.pixels : 0.0;
+            _isSwiping = true;
+            _pointerId = event.pointer;
+            HapticFeedback.lightImpact();
           },
-          physics: const BouncingScrollPhysics(),
-          dragStartBehavior: DragStartBehavior.down,
+          onPointerMove: (event) {
+            if (_isSwiping && event.pointer == _pointerId && _pageController.hasClients) {
+              final delta = event.position.dx - _startX;
+              double targetOffset = _startOffset - delta;
+              final maxScroll = _pageController.position.maxScrollExtent;
+              final minScroll = _pageController.position.minScrollExtent;
+              
+              if (targetOffset < minScroll) {
+                targetOffset = minScroll + (targetOffset - minScroll) * 0.3;
+              } else if (targetOffset > maxScroll) {
+                targetOffset = maxScroll + (targetOffset - maxScroll) * 0.3;
+              }
+              _pageController.position.jumpTo(targetOffset);
+            }
+          },
+          onPointerUp: (event) {
+            if (_isSwiping && event.pointer == _pointerId) {
+              _isSwiping = false;
+              _snapToPage();
+            }
+          },
+          onPointerCancel: (event) {
+            if (_isSwiping && event.pointer == _pointerId) {
+              _isSwiping = false;
+              _snapToPage();
+            }
+          },
+          child: PageView.builder(
+            controller: _pageController,
+            itemCount: screens.length,
+            itemBuilder: (context, index) => screens[index],
+            onPageChanged: (index) {
+              ref.read(selectedTabProvider.notifier).state = index;
+            },
+            physics: const NeverScrollableScrollPhysics(),
+          ),
         ),
         bottomNavigationBar: Container(
           margin: EdgeInsets.zero,

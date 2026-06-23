@@ -28,7 +28,7 @@ class _BudgetRingState extends State<BudgetRing>
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: const Duration(milliseconds: 2500), // Slower linear animation
+      duration: const Duration(milliseconds: 1700), // Faster animation for smoother UI
       vsync: this,
     );
     _animation = CurvedAnimation(
@@ -73,7 +73,7 @@ class _BudgetRingState extends State<BudgetRing>
         return SizedBox(
           width: widget.size,
           height: widget.size,
-          child: CustomPaint(
+          child: RepaintBoundary(child: CustomPaint(
             painter: _BudgetRingPainter(
               progress: currentPercentage,
               isOverBudget: isOverBudget,
@@ -101,7 +101,7 @@ class _BudgetRingState extends State<BudgetRing>
                 ],
               ),
             ),
-          ),
+          ),),
         );
       },
     );
